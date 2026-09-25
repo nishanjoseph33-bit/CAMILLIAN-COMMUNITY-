@@ -10,9 +10,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import io.github.jan.supabase.auth.providers.Email
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
-import io.github.jan.supabase.postgrest.query.filter.eq
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -89,7 +91,7 @@ private fun LoginScreen(
                         }
                         val user = Supabase.client.auth.currentUserOrNull() ?: error("No active session.")
                         val member = Supabase.client.from("profiles").select {
-                            filter { eq("id", user.id) }
+                            filter { filter("id", FilterOperator.EQ, user.id) }
                         }.decodeSingle<MemberProfile>()
 
                         when (member.memberStatus) {
@@ -156,7 +158,7 @@ private fun AdminDashboard(profile: MemberProfile) {
             loading = true
             try {
                 members = Supabase.client.from("profiles").select {
-                    filter { eq("member_status", status) }
+                    filter { filter("member_status", FilterOperator.EQ, status) }
                 }.decodeList<MemberProfile>()
                 message = ""
             } catch (e: Exception) {
@@ -173,10 +175,13 @@ private fun AdminDashboard(profile: MemberProfile) {
             actionMemberId = member.id
             message = ""
             try {
-                Supabase.client.postgrest.rpc("admin_set_member_status") {
-                    parameter("target_profile_id", member.id)
-                    parameter("new_status", newStatus)
-                }
+                Supabase.client.postgrest.rpc(
+                    "admin_set_member_status",
+                    mapOf(
+                        "target_profile_id" to member.id,
+                        "new_status" to newStatus
+                    )
+                )
                 message = "Member status changed to $newStatus."
                 loadMembers()
             } catch (e: Exception) {
