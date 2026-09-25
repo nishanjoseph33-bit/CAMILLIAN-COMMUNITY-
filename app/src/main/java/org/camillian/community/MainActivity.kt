@@ -365,7 +365,6 @@ private fun HomeScreen(profile: MemberProfile) {
             }
         }
     }
-}
 
 @Serializable
 private data class CommentRow(
