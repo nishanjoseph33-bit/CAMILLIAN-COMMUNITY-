@@ -616,13 +616,13 @@ private fun RegisterDialog(language: String = "English", onDismiss: () -> Unit, 
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Member registration") },
+        title = { Text(localized("Member registration", language)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(name, { name = it }, label = { Text("Full name") })
+                OutlinedTextField(name, { name = it }, label = { Text(localized("Full name", language)) })
                 OutlinedTextField(email, { email = it }, label = { Text("Email") })
                 OutlinedTextField(password, { password = it }, visualTransformation = PasswordVisualTransformation(), label = { Text("Password") })
-                OutlinedTextField(invite, { invite = it }, label = { Text("Invitation code") })
+                OutlinedTextField(invite, { invite = it }, label = { Text(localized("Invitation code", language)) })
             }
         },
         confirmButton = {
@@ -644,7 +644,7 @@ private fun RegisterDialog(language: String = "English", onDismiss: () -> Unit, 
                         onMessage(e.message ?: "Registration failed.")
                     } finally { busy = false }
                 }
-            }) { Text(if (busy) "Registering..." else "Register") }
+            }) { Text(if (busy) localized("Registering...", language) else localized("Register", language)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(localized("Cancel", language)) } }
     )
@@ -657,7 +657,7 @@ private fun RecoveryDialog(language: String = "English", onDismiss: () -> Unit, 
     val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Reset password") },
+        title = { Text(localized("Reset password", language)) },
         text = { OutlinedTextField(email, { email = it }, label = { Text("Email") }) },
         confirmButton = {
             Button(enabled = !busy && email.isNotBlank(), onClick = {
@@ -671,7 +671,7 @@ private fun RecoveryDialog(language: String = "English", onDismiss: () -> Unit, 
                         onMessage(e.message ?: "Could not send recovery email.")
                     } finally { busy = false }
                 }
-            }) { Text(if (busy) "Sending..." else "Send reset email") }
+            }) { Text(if (busy) localized("Sending...", language) else localized("Send reset email", language)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(localized("Cancel", language)) } }
     )
@@ -785,6 +785,24 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                 loadFeed()
             } catch (e: Exception) { message = e.message ?: "Could not edit post." }
             finally { posting = false }
+        }
+    }
+
+    fun editPost(postId: String, text: String, province: String) {
+        scope.launch {
+            try {
+                Supabase.client.from("posts").update(buildJsonObject {
+                    put("text_content", text.trim().ifBlank { null })
+                    put("province", province.trim().ifBlank { null })
+                }) {
+                    filter { filter("id", FilterOperator.EQ, postId) }
+                    filter { filter("author_id", FilterOperator.EQ, profile.id) }
+                }
+                editingPost = null
+                loadFeed()
+            } catch (e: Exception) {
+                message = e.message ?: localized("Could not update post.", language)
+            }
         }
     }
 
@@ -947,7 +965,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                         value = composer,
                         onValueChange = { composer = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Write something for the community...") },
+                        placeholder = { Text(localized("Write something for the community...", language)) },
                         minLines = 3,
                         shape = RoundedCornerShape(16.dp)
                     )
@@ -975,7 +993,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
             ) {
                 Column(Modifier.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("+", color = Color.White, fontSize = 28.sp)
-                    Text("Post", color = Color.White, fontSize = 11.sp)
+                    Text(localized("Post", language), color = Color.White, fontSize = 11.sp)
                 }
             }
             authorProfiles.values.take(12).forEach { author ->
@@ -1025,7 +1043,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
             }
         } else if (posts.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text("No posts yet. Be the first to share with the community.")
+                Text(localized("No posts yet. Be the first to share with the community.", language))
             }
         } else {
             LazyColumn(
@@ -1158,6 +1176,15 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
         }
     }
 
+    if (editingPost != null) {
+        EditPostDialog(
+            post = editingPost!!,
+            language = language,
+            onDismiss = { editingPost = null },
+            onSave = { text, province -> editPost(editingPost!!.id, text, province) }
+        )
+    }
+
     if (commentPostId != null) {
         CommentsDialog(postId = commentPostId!!, profile = profile, language = language, onDismiss = { commentPostId = null })
     }
@@ -1171,6 +1198,55 @@ private data class PostComment(
     @SerialName("author_id") val authorId: String,
     @SerialName("text_content") val textContent: String
 )
+
+@Composable
+private fun EditPostDialog(
+    post: FeedPost,
+    language: String,
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var text by remember { mutableStateOf(post.textContent.orEmpty()) }
+    var province by remember { mutableStateOf(post.province.orEmpty()) }
+    var saving by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = { if (!saving) onDismiss() },
+        title = { Text(localized("Edit post", language)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(
+                    value = province,
+                    onValueChange = { province = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(localized("Province", language)) }
+                )
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 4,
+                    label = { Text(localized("Post", language)) }
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                enabled = !saving,
+                onClick = {
+                    saving = true
+                    onSave(text, province)
+                }
+            ) { Text(if (saving) localized("Saving...", language) else localized("Save changes", language)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !saving) {
+                Text(localized("Cancel", language))
+            }
+        }
+    )
+}
 
 @Composable
 private fun CommentsDialog(postId: String, profile: MemberProfile, language: String = "English", onDismiss: () -> Unit) {
@@ -1270,11 +1346,11 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, language: Str
                     value = composer,
                     onValueChange = { composer = it },
                     modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Write a comment...") }
+                    placeholder = { Text(localized("Write a comment...", language)) }
                 )
                 Spacer(Modifier.height(6.dp))
                 Button(onClick = { send() }, enabled = !sending && composer.isNotBlank()) {
-                    Text(if (sending) "Posting..." else "Comment")
+                    Text(if (sending) localized("Posting...", language) else localized("Comment", language))
                 }
             }
         },
@@ -1314,6 +1390,28 @@ private fun localized(key: String, language: String): String {
         "Translation" to mapOf("Italiano" to "Traduzione", "Español" to "Traducción", "Português" to "Tradução", "Français" to "Traduction", "Deutsch" to "Übersetzung", "Tiếng Việt" to "Bản dịch", "Filipino" to "Salin"),
         "Translation failed" to mapOf("Italiano" to "Traduzione non riuscita", "Español" to "La traducción falló", "Português" to "A tradução falhou", "Français" to "La traduction a échoué", "Deutsch" to "Übersetzung fehlgeschlagen", "Tiếng Việt" to "Dịch không thành công", "Filipino" to "Hindi nagtagumpay ang pagsasalin"),
         "Close" to mapOf("Italiano" to "Chiudi", "Español" to "Cerrar", "Português" to "Fechar", "Français" to "Fermer", "Deutsch" to "Schließen", "Tiếng Việt" to "Đóng", "Filipino" to "Isara"),
+        "Edit" to mapOf("Italiano" to "Modifica", "Español" to "Editar", "Português" to "Editar", "Français" to "Modifier", "Deutsch" to "Bearbeiten", "Tiếng Việt" to "Chỉnh sửa", "Filipino" to "I-edit"),
+        "Edit post" to mapOf("Italiano" to "Modifica post", "Español" to "Editar publicación", "Português" to "Editar publicação", "Français" to "Modifier la publication", "Deutsch" to "Beitrag bearbeiten", "Tiếng Việt" to "Chỉnh sửa bài đăng", "Filipino" to "I-edit ang post"),
+        "Post" to mapOf("Italiano" to "Post", "Español" to "Publicación", "Português" to "Publicação", "Français" to "Publication", "Deutsch" to "Beitrag", "Tiếng Việt" to "Bài đăng", "Filipino" to "Post"),
+        "Save changes" to mapOf("Italiano" to "Salva modifiche", "Español" to "Guardar cambios", "Português" to "Guardar alterações", "Français" to "Enregistrer", "Deutsch" to "Änderungen speichern", "Tiếng Việt" to "Lưu thay đổi", "Filipino" to "I-save ang mga pagbabago"),
+        "Saving..." to mapOf("Italiano" to "Salvataggio...", "Español" to "Guardando...", "Português" to "A guardar...", "Français" to "Enregistrement...", "Deutsch" to "Speichern...", "Tiếng Việt" to "Đang lưu...", "Filipino" to "Sine-save..."),
+        "Could not update post." to mapOf("Italiano" to "Impossibile aggiornare il post.", "Español" to "No se pudo actualizar la publicación.", "Português" to "Não foi possível atualizar a publicação.", "Français" to "Impossible de mettre à jour la publication.", "Deutsch" to "Beitrag konnte nicht aktualisiert werden.", "Tiếng Việt" to "Không thể cập nhật bài đăng.", "Filipino" to "Hindi ma-update ang post."),
+        "No posts yet. Be the first to share with the community." to mapOf("Italiano" to "Ancora nessun post. Sii il primo a condividere con la comunità.", "Español" to "Aún no hay publicaciones. Sé el primero en compartir con la comunidad.", "Português" to "Ainda não há publicações. Seja o primeiro a partilhar com a comunidade.", "Français" to "Aucune publication. Soyez le premier à partager avec la communauté.", "Deutsch" to "Noch keine Beiträge. Sei der Erste, der mit der Gemeinschaft teilt.", "Tiếng Việt" to "Chưa có bài đăng. Hãy là người đầu tiên chia sẻ với cộng đoàn.", "Filipino" to "Wala pang mga post. Ikaw ang unang magbahagi sa komunidad."),
+        "Write a comment..." to mapOf("Italiano" to "Scrivi un commento...", "Español" to "Escribe un comentario...", "Português" to "Escreva um comentário...", "Français" to "Écrivez un commentaire...", "Deutsch" to "Kommentar schreiben...", "Tiếng Việt" to "Viết bình luận...", "Filipino" to "Sumulat ng komento..."),
+        "Publishing..." to mapOf("Italiano" to "Pubblicazione...", "Español" to "Publicando...", "Português" to "A publicar...", "Français" to "Publication...", "Deutsch" to "Veröffentlichen...", "Tiếng Việt" to "Đang đăng...", "Filipino" to "Ipi-publish..."),
+        "Posting..." to mapOf("Italiano" to "Pubblicazione...", "Español" to "Publicando...", "Português" to "A publicar...", "Français" to "Publication...", "Deutsch" to "Wird veröffentlicht...", "Tiếng Việt" to "Đang đăng...", "Filipino" to "Pino-post..."),
+        "Member registration" to mapOf("Italiano" to "Registrazione membro", "Español" to "Registro de miembro", "Português" to "Registo de membro", "Français" to "Inscription du membre", "Deutsch" to "Mitgliedsregistrierung", "Tiếng Việt" to "Đăng ký thành viên", "Filipino" to "Pagpaparehistro ng miyembro"),
+        "Full name" to mapOf("Italiano" to "Nome completo", "Español" to "Nombre completo", "Português" to "Nome completo", "Français" to "Nom complet", "Deutsch" to "Vollständiger Name", "Tiếng Việt" to "Họ và tên", "Filipino" to "Buong pangalan"),
+        "Invitation code" to mapOf("Italiano" to "Codice invito", "Español" to "Código de invitación", "Português" to "Código de convite", "Français" to "Code d’invitation", "Deutsch" to "Einladungscode", "Tiếng Việt" to "Mã lời mời", "Filipino" to "Code ng imbitasyon"),
+        "Register" to mapOf("Italiano" to "Registrati", "Español" to "Registrarse", "Português" to "Registar", "Français" to "S’inscrire", "Deutsch" to "Registrieren", "Tiếng Việt" to "Đăng ký", "Filipino" to "Magrehistro"),
+        "Log in" to mapOf("Italiano" to "Accedi", "Español" to "Iniciar sesión", "Português" to "Entrar", "Français" to "Se connecter", "Deutsch" to "Anmelden", "Tiếng Việt" to "Đăng nhập", "Filipino" to "Mag-login"),
+        "Forgot password?" to mapOf("Italiano" to "Password dimenticata?", "Español" to "¿Olvidaste la contraseña?", "Português" to "Esqueceu a palavra-passe?", "Français" to "Mot de passe oublié ?", "Deutsch" to "Passwort vergessen?", "Tiếng Việt" to "Quên mật khẩu?", "Filipino" to "Nakalimutan ang password?"),
+        "Language" to mapOf("Italiano" to "Lingua", "Español" to "Idioma", "Português" to "Idioma", "Français" to "Langue", "Deutsch" to "Sprache", "Tiếng Việt" to "Ngôn ngữ", "Filipino" to "Wika"),
+        "Find Friends" to mapOf("Italiano" to "Trova amici", "Español" to "Buscar amigos", "Português" to "Encontrar amigos", "Français" to "Trouver des amis", "Deutsch" to "Freunde finden", "Tiếng Việt" to "Tìm bạn bè", "Filipino" to "Maghanap ng mga kaibigan"),
+        "Back" to mapOf("Italiano" to "Indietro", "Español" to "Atrás", "Português" to "Voltar", "Français" to "Retour", "Deutsch" to "Zurück", "Tiếng Việt" to "Quay lại", "Filipino" to "Bumalik"),
+        "Send" to mapOf("Italiano" to "Invia", "Español" to "Enviar", "Português" to "Enviar", "Français" to "Envoyer", "Deutsch" to "Senden", "Tiếng Việt" to "Gửi", "Filipino" to "Ipadala"),
+        "Save profile" to mapOf("Italiano" to "Salva profilo", "Español" to "Guardar perfil", "Português" to "Guardar perfil", "Français" to "Enregistrer le profil", "Deutsch" to "Profil speichern", "Tiếng Việt" to "Lưu hồ sơ", "Filipino" to "I-save ang profile"),
+        "Sign out" to mapOf("Italiano" to "Esci", "Español" to "Cerrar sesión", "Português" to "Terminar sessão", "Français" to "Se déconnecter", "Deutsch" to "Abmelden", "Tiếng Việt" to "Đăng xuất", "Filipino" to "Mag-sign out"),
         "Edit" to mapOf("Italiano" to "Modifica", "Español" to "Editar", "Português" to "Editar", "Français" to "Modifier", "Deutsch" to "Bearbeiten", "Tiếng Việt" to "Chỉnh sửa", "Filipino" to "I-edit"),
         "Edit post" to mapOf("Italiano" to "Modifica post", "Español" to "Editar publicación", "Português" to "Editar publicação", "Français" to "Modifier la publication", "Deutsch" to "Beitrag bearbeiten", "Tiếng Việt" to "Chỉnh sửa bài đăng", "Filipino" to "I-edit ang post"),
         "Save changes" to mapOf("Italiano" to "Salva modifiche", "Español" to "Guardar cambios", "Português" to "Guardar alterações", "Français" to "Enregistrer les modifications", "Deutsch" to "Änderungen speichern", "Tiếng Việt" to "Lưu thay đổi", "Filipino" to "I-save ang mga pagbabago"),
@@ -1457,7 +1555,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text("Find Friends", style = MaterialTheme.typography.headlineMedium)
+                Text(localized("Find Friends", language), style = MaterialTheme.typography.headlineMedium)
                 Text("Find and connect with Camillian members.")
             }
             TextButton(onClick = { showNotifications = !showNotifications }) {
@@ -1633,7 +1731,7 @@ private fun EventsScreen(language: String = "English") {
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Events", style = MaterialTheme.typography.headlineMedium)
+        Text(localized("Events", language), style = MaterialTheme.typography.headlineMedium)
         Text("Retreats, conferences, chapters, feast days and community events.")
         Spacer(Modifier.height(16.dp))
         if (loading) CircularProgressIndicator()
@@ -1682,7 +1780,7 @@ private fun CommunitiesScreen(language: String = "English") {
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Communities", style = MaterialTheme.typography.headlineMedium)
+        Text(localized("Communities", language), style = MaterialTheme.typography.headlineMedium)
         Text("Provinces, delegations, communities and formation houses.")
         Spacer(Modifier.height(16.dp))
         if (loading) CircularProgressIndicator()
@@ -1753,7 +1851,7 @@ private fun MessagesScreen(profile: MemberProfile, language: String = "English")
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Messages", style = MaterialTheme.typography.headlineMedium)
+        Text(localized("Messages", language), style = MaterialTheme.typography.headlineMedium)
         Text("Private and community conversations.")
         Spacer(Modifier.height(16.dp))
         if (loading) CircularProgressIndicator()
@@ -1819,7 +1917,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, onBac
 
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text("Back") }
+            TextButton(onClick = onBack) { Text(localized("Back", language)) }
             Text(conversation.title ?: "Conversation", style = MaterialTheme.typography.titleLarge)
         }
         LazyColumn(
@@ -1965,7 +2063,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
             }
             item {
                 OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
-                    Text("Sign out")
+                    Text(localized("Sign out", language))
                 }
             }
             item { Spacer(Modifier.height(80.dp)) }
