@@ -759,7 +759,6 @@ private fun localized(key: String, language: String): String {
 }
 
 @Composable
-@Composable
 private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("Home") }
 
