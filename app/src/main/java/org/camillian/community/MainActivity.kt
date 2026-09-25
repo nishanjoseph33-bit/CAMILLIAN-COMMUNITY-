@@ -788,24 +788,6 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
         }
     }
 
-    fun editPost(postId: String, text: String, province: String) {
-        scope.launch {
-            try {
-                Supabase.client.from("posts").update(buildJsonObject {
-                    put("text_content", text.trim().ifBlank { null })
-                    put("province", province.trim().ifBlank { null })
-                }) {
-                    filter { filter("id", FilterOperator.EQ, postId) }
-                    filter { filter("author_id", FilterOperator.EQ, profile.id) }
-                }
-                editingPost = null
-                loadFeed()
-            } catch (e: Exception) {
-                message = e.message ?: localized("Could not update post.", language)
-            }
-        }
-    }
-
     fun deletePost(postId: String) {
         scope.launch {
             try {
@@ -1176,15 +1158,6 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
         }
     }
 
-    if (editingPost != null) {
-        EditPostDialog(
-            post = editingPost!!,
-            language = language,
-            onDismiss = { editingPost = null },
-            onSave = { text, province -> editPost(editingPost!!.id, text, province) }
-        )
-    }
-
     if (commentPostId != null) {
         CommentsDialog(postId = commentPostId!!, profile = profile, language = language, onDismiss = { commentPostId = null })
     }
@@ -1443,7 +1416,7 @@ private fun localized(key: String, language: String): String {
         "Email" to mapOf("Italiano" to "Email", "Español" to "Correo electrónico", "Português" to "Email", "Français" to "E-mail", "Deutsch" to "E-Mail", "Tiếng Việt" to "Email", "Filipino" to "Email"),
         "Password" to mapOf("Italiano" to "Password", "Español" to "Contraseña", "Português" to "Palavra-passe", "Français" to "Mot de passe", "Deutsch" to "Passwort", "Tiếng Việt" to "Mật khẩu", "Filipino" to "Password"),
         "Registering..." to mapOf("Italiano" to "Registrazione...", "Español" to "Registrando...", "Português" to "A registar...", "Français" to "Inscription...", "Deutsch" to "Registrieren...", "Tiếng Việt" to "Đang đăng ký...", "Filipino" to "Nagrerehistro..."),
-        "Sending..." to mapOf("Italiano" to "Invio...", "Español" to "Enviando...", "Português" to "A enviar...", "Français" to "Envoi...", "Deutsch" to "Senden...", "Tiếng Việt" to "Đang gửi...", "Filipino" to "Ipinapadala...")
+        "Sending..." to mapOf("Italiano" to "Invio...", "Español" to "Enviando...", "Português" to "A enviar...", "Français" to "Envoi...", "Deutsch" to "Senden...", "Tiếng Việt" to "Đang gửi...", "Filipino" to "Ipinapadala..."),
         "Edit" to mapOf("Italiano" to "Modifica", "Español" to "Editar", "Português" to "Editar", "Français" to "Modifier", "Deutsch" to "Bearbeiten", "Tiếng Việt" to "Chỉnh sửa", "Filipino" to "I-edit"),
         "Edit post" to mapOf("Italiano" to "Modifica post", "Español" to "Editar publicación", "Português" to "Editar publicação", "Français" to "Modifier la publication", "Deutsch" to "Beitrag bearbeiten", "Tiếng Việt" to "Chỉnh sửa bài đăng", "Filipino" to "I-edit ang post"),
         "Save changes" to mapOf("Italiano" to "Salva modifiche", "Español" to "Guardar cambios", "Português" to "Guardar alterações", "Français" to "Enregistrer les modifications", "Deutsch" to "Änderungen speichern", "Tiếng Việt" to "Lưu thay đổi", "Filipino" to "I-save ang mga pagbabago"),
