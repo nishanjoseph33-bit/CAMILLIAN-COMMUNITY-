@@ -176,6 +176,7 @@ private fun HomeScreen(profile: MemberProfile) {
     var reactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var reactionCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var reactingPostId by remember { mutableStateOf<String?>(null) }
+    var commentPostId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun loadFeed() {
@@ -359,6 +360,8 @@ private fun HomeScreen(profile: MemberProfile) {
                                     )
                                 }
                                 Text(reactionCounts[post.id]?.toString() ?: "0")
+                                Spacer(Modifier.width(8.dp))
+                                TextButton(onClick = { commentPostId = post.id }) { Text("Comments") }
                             }
                         }
                     }
@@ -367,6 +370,94 @@ private fun HomeScreen(profile: MemberProfile) {
         }
     }
 }
+
+
+@Serializable
+private data class PostComment(
+    val id: String,
+    @SerialName("post_id") val postId: String,
+    @SerialName("author_id") val authorId: String,
+    @SerialName("text_content") val textContent: String
+)
+
+@Composable
+private fun CommentsDialog(postId: String, profile: MemberProfile, onDismiss: () -> Unit) {
+    var comments by remember { mutableStateOf<List<PostComment>>(emptyList()) }
+    var composer by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun load() {
+        scope.launch {
+            try {
+                comments = Supabase.client.from("comments").select {
+                    filter { filter("post_id", FilterOperator.EQ, postId) }
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+                }.decodeList<PostComment>()
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun send() {
+        val text = composer.trim()
+        if (text.isEmpty()) return
+        scope.launch {
+            sending = true
+            try {
+                Supabase.client.from("comments").insert(buildJsonObject {
+                    put("post_id", postId)
+                    put("author_id", profile.id)
+                    put("text_content", text)
+                })
+                composer = ""
+                load()
+            } catch (_: Exception) {} finally {
+                sending = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) { load() }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Comments") },
+        text = {
+            Column {
+                LazyColumn(
+                    Modifier.heightIn(max = 260.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(comments, key = { it.id }) { comment ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(10.dp)) {
+                                Text("Member " + comment.authorId.take(8))
+                                Text(comment.textContent)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = composer,
+                    onValueChange = { composer = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Write a comment...") }
+                )
+                Spacer(Modifier.height(6.dp))
+                Button(onClick = { send() }, enabled = !sending && composer.isNotBlank()) {
+                    Text(if (sending) "Posting..." else "Comment")
+                }
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+    )
+}
+
+
+    if (commentPostId != null) {
+        CommentsDialog(postId = commentPostId!!, profile = profile, onDismiss = { commentPostId = null })
+    }
 
 
 @Composable
