@@ -3,6 +3,7 @@ name: Build Android APK
 # Social features build verification
 # Rebuild after pull-to-refresh opt-in fix
 # Verify message page navigation and two-way chat
+# Verify profile crop and login/home visual updates
 # Rebuild after compile fix
 
 on:
