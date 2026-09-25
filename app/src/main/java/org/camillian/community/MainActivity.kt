@@ -14,6 +14,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.shape.RoundedCornerShape
 import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,6 +31,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import io.github.jan.supabase.auth.auth
@@ -145,7 +148,7 @@ private fun AppBackground(content: @Composable () -> Unit) {
         )
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color.Black.copy(alpha = 0.44f)
+            color = Color.Black.copy(alpha = 0.22f)
         ) {}
         content()
     }
@@ -204,93 +207,304 @@ private fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var rememberMe by remember { mutableStateOf(false) }
     var showRegister by remember { mutableStateOf(false) }
     var showRecovery by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf(initialMessage) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
-    Column(
-        Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxSize()
+            .imePadding()
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.camillian_logo),
-            contentDescription = "Camillian logo",
-            modifier = Modifier.size(120.dp),
-            contentScale = ContentScale.Fit
-        )
-        Spacer(Modifier.height(12.dp))
-        Text("Camillian Community", style = MaterialTheme.typography.headlineMedium)
-        Text(localized("Members only", language))
-        Spacer(Modifier.height(8.dp))
-        LanguageSelector(selected = language, onSelected = onLanguageChange)
-        Spacer(Modifier.height(20.dp))
-        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text(localized("Email", language)) }, singleLine = true)
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text(localized("Password", language)) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
-        Spacer(Modifier.height(20.dp))
-        Button(
-            onClick = {
-                loading = true
-                message = ""
-                scope.launch {
-                    try {
-                        Supabase.client.auth.signInWith(Email) {
-                            this.email = email.trim()
-                            this.password = password
-                        }
-                        val user = Supabase.client.auth.currentUserOrNull() ?: error("No active session.")
-                        val member = Supabase.client.from("profiles").select {
-                            filter { filter("id", FilterOperator.EQ, user.id) }
-                        }.decodeSingle<MemberProfile>()
+        val compact = maxHeight < 760.dp
 
-                        when (member.memberStatus) {
-                            "approved" -> onApproved(member)
-                            "pending" -> {
-                                Supabase.client.auth.signOut()
-                                message = "Membership is awaiting administrator approval."
-                            }
-                            "rejected" -> {
-                                Supabase.client.auth.signOut()
-                                message = "Membership application was not approved."
-                            }
-                            "suspended" -> {
-                                Supabase.client.auth.signOut()
-                                message = "Account is suspended. Please contact an administrator."
-                            }
-                            else -> {
-                                Supabase.client.auth.signOut()
-                                message = "Membership status could not be verified."
-                            }
-                        }
-                    } catch (e: Exception) {
-                        message = e.message ?: "Sign-in failed."
-                    } finally {
-                        loading = false
-                    }
-                    onMessage(message)
-                }
-            },
-            enabled = !loading && email.isNotBlank() && password.isNotBlank(),
-            modifier = Modifier.fillMaxWidth()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp, vertical = if (compact) 16.dp else 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(if (loading) localized("Checking membership...", language) else localized("Sign in", language))
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.TopEnd
+            ) {
+                LanguageSelector(selected = language, onSelected = onLanguageChange)
+            }
+
+            Spacer(Modifier.height(if (compact) 8.dp else 20.dp))
+
+            Image(
+                painter = painterResource(id = R.drawable.camillian_logo),
+                contentDescription = "Camillian logo",
+                modifier = Modifier.size(if (compact) 78.dp else 94.dp),
+                contentScale = ContentScale.Fit
+            )
+
+            Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
+
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = 520.dp),
+                shape = RoundedCornerShape(2.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFD9D9D9).copy(alpha = 0.96f)
+                ),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(
+                        horizontal = if (compact) 22.dp else 34.dp,
+                        vertical = if (compact) 24.dp else 34.dp
+                    ),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(if (compact) 84.dp else 100.dp)
+                            .offset(y = if (compact) (-58).dp else (-66).dp)
+                            .background(Color(0xFFD9D9D9), RoundedCornerShape(50))
+                            .border(4.dp, Color.White, RoundedCornerShape(50)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            "♙",
+                            color = Color(0xFF222222),
+                            fontSize = if (compact) 48.sp else 56.sp,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+
+                    Spacer(Modifier.height(if (compact) (-42).dp else (-48).dp))
+
+                    Text(
+                        "LOGIN",
+                        style = MaterialTheme.typography.headlineLarge.copy(
+                            fontWeight = FontWeight.ExtraBold,
+                            letterSpacing = 1.5.sp
+                        ),
+                        color = Color(0xFF171516)
+                    )
+                    Text(
+                        "Welcome to Camillian Community",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color(0xFF555154),
+                        textAlign = TextAlign.Center
+                    )
+
+                    Spacer(Modifier.height(if (compact) 22.dp else 30.dp))
+
+                    LoginField(
+                        value = email,
+                        onValueChange = { email = it },
+                        placeholder = localized("Email", language),
+                        password = false
+                    )
+
+                    Spacer(Modifier.height(14.dp))
+
+                    LoginField(
+                        value = password,
+                        onValueChange = { password = it },
+                        placeholder = localized("Password", language),
+                        password = true
+                    )
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Checkbox(
+                                checked = rememberMe,
+                                onCheckedChange = { rememberMe = it },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = Color(0xFF252122),
+                                    uncheckedColor = Color(0xFF444044)
+                                )
+                            )
+                            Text(
+                                "Remember",
+                                color = Color(0xFF333033),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+
+                        TextButton(
+                            onClick = { showRecovery = true },
+                            contentPadding = PaddingValues(4.dp)
+                        ) {
+                            Text(
+                                localized("Forgot password?", language),
+                                color = Color(0xFF333033),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Button(
+                        onClick = {
+                            loading = true
+                            message = ""
+                            scope.launch {
+                                try {
+                                    Supabase.client.auth.signInWith(Email) {
+                                        this.email = email.trim()
+                                        this.password = password
+                                    }
+                                    val user = Supabase.client.auth.currentUserOrNull()
+                                        ?: error("No active session.")
+                                    val member = Supabase.client.from("profiles").select {
+                                        filter { filter("id", FilterOperator.EQ, user.id) }
+                                    }.decodeSingle<MemberProfile>()
+
+                                    when (member.memberStatus) {
+                                        "approved" -> onApproved(member)
+                                        "pending" -> {
+                                            Supabase.client.auth.signOut()
+                                            message = "Membership is awaiting administrator approval."
+                                        }
+                                        "rejected" -> {
+                                            Supabase.client.auth.signOut()
+                                            message = "Membership application was not approved."
+                                        }
+                                        "suspended" -> {
+                                            Supabase.client.auth.signOut()
+                                            message = "Account is suspended. Please contact an administrator."
+                                        }
+                                        else -> {
+                                            Supabase.client.auth.signOut()
+                                            message = "Membership status could not be verified."
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    message = e.message ?: "Sign-in failed."
+                                } finally {
+                                    loading = false
+                                }
+                                onMessage(message)
+                            }
+                        },
+                        enabled = !loading && email.isNotBlank() && password.isNotBlank(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp),
+                        shape = RoundedCornerShape(28.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF252122),
+                            contentColor = Color.White
+                        )
+                    ) {
+                        Text(
+                            if (loading) localized("Checking membership...", language) else "LOGIN",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 18.sp,
+                            letterSpacing = 1.sp
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    TextButton(onClick = { showRegister = true }) {
+                        Text(
+                            localized("Register", language),
+                            color = Color(0xFF0057B8),
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    if (message.isNotBlank()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            message,
+                            color = Color(0xFF9B1C1C),
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(18.dp))
+            Text(
+                "Camillian Community",
+                color = Color.White,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { showRegister = true }) { Text(localized("Register", language)) }
-            TextButton(onClick = { showRecovery = true }) { Text(localized("Forgot password?", language)) }
+
+        if (showRegister) {
+            RegisterDialog(
+                onDismiss = { showRegister = false },
+                onMessage = { message = it }
+            )
         }
-        if (message.isNotBlank()) {
-            Spacer(Modifier.height(16.dp))
-            Text(message)
+
+        if (showRecovery) {
+            RecoveryDialog(
+                onDismiss = { showRecovery = false },
+                onMessage = { message = it }
+            )
         }
-        if (showRegister) RegisterDialog(onDismiss = { showRegister = false }, onMessage = { message = it })
-        if (showRecovery) RecoveryDialog(onDismiss = { showRecovery = false }, onMessage = { message = it })
     }
 }
 
+@Composable
+private fun LoginField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    password: Boolean
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp),
+        singleLine = true,
+        placeholder = {
+            Text(
+                placeholder,
+                color = Color(0xFFEDEDED)
+            )
+        },
+        leadingIcon = {
+            Text(
+                if (password) "▣" else "@",
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = 20.sp
+            )
+        },
+        visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
+        shape = RoundedCornerShape(30.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedContainerColor = Color(0xFF252122),
+            unfocusedContainerColor = Color(0xFF252122),
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            cursorColor = Color.White,
+            focusedBorderColor = Color.Transparent,
+            unfocusedBorderColor = Color.Transparent,
+            focusedLeadingIconColor = Color.White,
+            unfocusedLeadingIconColor = Color.White
+        )
+    )
+}
 
 @Serializable
 private data class InviteCheck(val valid: Boolean)
