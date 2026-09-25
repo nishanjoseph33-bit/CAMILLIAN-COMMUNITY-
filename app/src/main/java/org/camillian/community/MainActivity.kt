@@ -28,6 +28,15 @@ private data class MemberProfile(
     val id: String,
     @SerialName("full_name") val fullName: String? = null,
     val email: String? = null,
+    val phone: String? = null,
+    @SerialName("religious_name") val religiousName: String? = null,
+    val place: String? = null,
+    val province: String? = null,
+    val delegation: String? = null,
+    val community: String? = null,
+    val ministry: String? = null,
+    @SerialName("role_title") val roleTitle: String? = null,
+    val bio: String? = null,
     @SerialName("member_status") val memberStatus: String,
     @SerialName("member_role") val memberRole: String
 )
@@ -54,7 +63,10 @@ private fun App() {
         if (profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin") {
             AdminDashboard(profile!!)
         } else {
-            HomeScreen(profile!!)
+            CommunityShell(profile!!, onLogout = {
+                Supabase.client.auth.signOut()
+                profile = null
+            })
         }
     }
 }
