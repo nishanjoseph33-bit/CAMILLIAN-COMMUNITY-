@@ -1773,22 +1773,31 @@ private fun FriendsScreen(
     var showNotifications by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+    var openingChatMemberId by remember { mutableStateOf<String?>(null) }
+
     fun openFriendChat(memberId: String) {
+        if (openingChatMemberId != null) return
         scope.launch {
+            openingChatMemberId = memberId
+            message = ""
             try {
-                // The RPC creates (or reuses) the private chat and returns its conversation UUID.
-                // Use that UUID directly instead of searching all memberships/conversations.
+                // The RPC atomically creates (or reuses) the private chat and returns its UUID.
+                // Avoid a second SELECT here because the RPC already returns the conversation UUID.
                 val conversationId = Supabase.client.postgrest
                     .rpc("ensure_friend_conversation", buildJsonObject { put("target_user_id", memberId) })
                     .decodeSingle<String>()
 
-                val conversation = Supabase.client.from("conversations").select {
-                    filter { filter("id", FilterOperator.EQ, conversationId) }
-                }.decodeSingle<Conversation>()
-
-                onOpenChat(conversation)
+                onOpenChat(
+                    Conversation(
+                        id = conversationId,
+                        title = "Private conversation",
+                        isGroup = false
+                    )
+                )
             } catch (e: Exception) {
-                message = e.message ?: "Could not open the conversation."
+                message = userFacingSupabaseError(e, "Could not open the private conversation.")
+            } finally {
+                openingChatMemberId = null
             }
         }
     }
@@ -1970,8 +1979,14 @@ private fun FriendsScreen(
                         when (statuses[member.id]) {
                             "friends" -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Text(localized("Friends", language), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                Button(onClick = { openFriendChat(member.id) }) {
-                                    Text(localized("Message", language))
+                                Button(
+                                    onClick = { openFriendChat(member.id) },
+                                    enabled = openingChatMemberId == null
+                                ) {
+                                    Text(
+                                        if (openingChatMemberId == member.id) localized("Opening...", language)
+                                        else localized("Message", language)
+                                    )
                                 }
                             }
                             "outgoing" -> Text(localized("Request sent", language), color = MaterialTheme.colorScheme.secondary)
@@ -2104,6 +2119,19 @@ private fun CommunitiesScreen(language: String = "English") {
 }
 
 
+private fun userFacingSupabaseError(error: Exception, fallback: String): String {
+    val raw = error.message?.trim().orEmpty()
+    if (raw.isBlank()) return fallback
+    val normalized = raw.replace("\\n", " ").replace(Regex("\\s+"), " ").trim()
+    return when {
+        normalized.contains("not friends", ignoreCase = true) ->
+            "This member is not currently an accepted friend. Accept the friend request first."
+        normalized.contains("42501") || normalized.contains("permission denied", ignoreCase = true) ->
+            "You do not have permission to use this conversation. Please sign in again."
+        else -> fallback + " " + normalized.take(220)
+    }
+}
+
 @Serializable
 private data class Conversation(
     val id: String,
@@ -2196,6 +2224,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
     var composer by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var translatedMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var message by remember { mutableStateOf("") }
     var translatingMessageId by remember { mutableStateOf<String?>(null) }
     var otherMemberName by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -2207,7 +2236,8 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                     filter { filter("conversation_id", FilterOperator.EQ, conversation.id) }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                 }.decodeList<ChatMessage>()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                message = userFacingSupabaseError(e, "Could not load messages.")
             }
         }
     }
@@ -2225,7 +2255,8 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                 })
                 composer = ""
                 loadMessages()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                message = userFacingSupabaseError(e, "Could not send the message.")
             } finally {
                 sending = false
             }
