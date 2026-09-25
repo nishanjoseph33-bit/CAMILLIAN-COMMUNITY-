@@ -137,6 +137,23 @@ private fun LoginScreen(
     }
 }
 
+@Serializable
+private data class FeedPost(
+    val id: String,
+    @SerialName("author_id") val authorId: String,
+    @SerialName("kind") val kind: String = "text",
+    @SerialName("text_content") val textContent: String? = null,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Serializable
+private data class PostReaction(
+    val id: String,
+    @SerialName("post_id") val postId: String,
+    @SerialName("user_id") val userId: String,
+    val reaction: String = "like"
+)
+
 @Composable
 private fun HomeScreen(profile: MemberProfile) {
     var posts by remember { mutableStateOf<List<FeedPost>>(emptyList()) }
@@ -186,6 +203,7 @@ private fun HomeScreen(profile: MemberProfile) {
                     filter { filter("user_id", FilterOperator.EQ, profile.id) }
                     filter { filter("reaction", FilterOperator.EQ, "like") }
                 }.decodeList<PostReaction>()
+
                 if (existing.isNotEmpty()) {
                     existing.forEach { reaction ->
                         Supabase.client.from("post_reactions").delete {
@@ -240,10 +258,11 @@ private fun HomeScreen(profile: MemberProfile) {
         ) {
             Column {
                 Text("Camillian Community", style = MaterialTheme.typography.headlineSmall)
-                Text("Welcome, ${profile.fullName ?: profile.email ?: "Member"}")
+                Text("Welcome, " + (profile.fullName ?: profile.email ?: "Member"))
             }
             TextButton(onClick = { loadFeed() }) { Text("Refresh") }
         }
+
         Card(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
             Column(Modifier.padding(16.dp)) {
                 Text("Share with the community", style = MaterialTheme.typography.titleMedium)
@@ -256,14 +275,22 @@ private fun HomeScreen(profile: MemberProfile) {
                     minLines = 3
                 )
                 Spacer(Modifier.height(8.dp))
-                Button(onClick = { createPost() }, enabled = !posting && composer.isNotBlank(), modifier = Modifier.align(Alignment.End)) {
-                    Text(if (posting) "Publishing..." else "Publish")
-                }
+                Button(
+                    onClick = { createPost() },
+                    enabled = !posting && composer.isNotBlank(),
+                    modifier = Modifier.align(Alignment.End)
+                ) { Text(if (posting) "Publishing..." else "Publish") }
             }
         }
-        if (message.isNotBlank()) Text(message, modifier = Modifier.padding(20.dp), color = MaterialTheme.colorScheme.error)
+
+        if (message.isNotBlank()) {
+            Text(message, modifier = Modifier.padding(20.dp), color = MaterialTheme.colorScheme.error)
+        }
+
         if (loading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator()
+            }
         } else if (posts.isEmpty()) {
             Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
                 Text("No posts yet. Be the first to share with the community.")
@@ -289,7 +316,7 @@ private fun HomeScreen(profile: MemberProfile) {
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(Modifier.height(6.dp))
-                            Text("Member ${post.authorId.take(8)}", style = MaterialTheme.typography.titleMedium)
+                            Text("Member " + post.authorId.take(8), style = MaterialTheme.typography.titleMedium)
                             Spacer(Modifier.height(8.dp))
                             if (!post.textContent.isNullOrBlank()) Text(post.textContent)
                             Spacer(Modifier.height(8.dp))
@@ -297,7 +324,7 @@ private fun HomeScreen(profile: MemberProfile) {
                             Spacer(Modifier.height(6.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 TextButton(onClick = { toggleLike(post.id) }) {
-                                    Text(if (reactionIds.contains(post.id)) "♥ Liked" else "♡ Like")
+                                    Text(if (reactionIds.contains(post.id)) "Liked" else "Like")
                                 }
                                 Text(reactionCounts[post.id]?.toString() ?: "0")
                             }
@@ -309,25 +336,6 @@ private fun HomeScreen(profile: MemberProfile) {
     }
 }
 
-
-@Serializable
-private data class PostReaction(
-    val id: String,
-    @SerialName("post_id") val postId: String,
-    @SerialName("user_id") val userId: String,
-    val reaction: String = "like"
-)
-
-@Serializable
-private data class FeedPost(
-    val id: String,
-    @SerialName("author_id") val authorId: String,
-    val content: String? = null,
-    @SerialName("kind") val kind: String = "text",
-    @SerialName("text_content") val textContent: String? = null,
-    @SerialName("media_url") val mediaUrl: String? = null,
-    @SerialName("created_at") val createdAt: String? = null
-)
 @Composable
 private fun AdminDashboard(profile: MemberProfile) {
     var status by remember { mutableStateOf("pending") }
