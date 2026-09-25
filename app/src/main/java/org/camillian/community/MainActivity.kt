@@ -592,7 +592,8 @@ private data class FeedPost(
     @SerialName("text_content") val textContent: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("media_url") val mediaUrl: String? = null,
-    @SerialName("media_type") val mediaType: String? = null
+    @SerialName("media_type") val mediaType: String? = null,
+    val province: String? = null
 )
 
 @Serializable
@@ -618,6 +619,8 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     var reactingPostId by remember { mutableStateOf<String?>(null) }
     var commentPostId by remember { mutableStateOf<String?>(null) }
     var showComposer by remember { mutableStateOf(false) }
+    var postProvince by remember { mutableStateOf(profile.province.orEmpty()) }
+    var provinceMenuExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -750,6 +753,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                     put("text_content", text.ifBlank { null })
                     put("media_url", mediaUrl)
                     put("media_type", mediaKind)
+                    put("province", postProvince.trim().ifBlank { null })
                 })
                 composer = ""
                 mediaUri = null
@@ -809,6 +813,20 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                         OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text("Photo") }
                         OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text("Video") }
                     }
+                    Box {
+                        OutlinedButton(onClick = { provinceMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                            Text(if (postProvince.isBlank()) "Add province" else "Province: " + postProvince)
+                        }
+                        DropdownMenu(expanded = provinceMenuExpanded, onDismissRequest = { provinceMenuExpanded = false }) {
+                            if (profile.province.isNullOrBlank()) {
+                                DropdownMenuItem(text = { Text("No province set in profile") }, onClick = { provinceMenuExpanded = false })
+                            } else {
+                                DropdownMenuItem(text = { Text("Province: " + profile.province) }, onClick = { postProvince = profile.province.orEmpty(); provinceMenuExpanded = false })
+                            }
+                            DropdownMenuItem(text = { Text("Clear province") }, onClick = { postProvince = ""; provinceMenuExpanded = false })
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = composer,
                         onValueChange = { composer = it },
@@ -1006,7 +1024,7 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
     Scaffold(
         bottomBar = {
             NavigationBar {
-                listOf("Home", "Events", "Communities", "Messages", "Profile").forEach { item ->
+                listOf("Home", "Friends", "Events", "Communities", "Messages", "Profile").forEach { item ->
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { tab = item },
@@ -1030,6 +1048,7 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
             Box(Modifier.fillMaxSize().padding(padding)) {
                 when (currentTab) {
                     "Home" -> HomeScreen(profile, language)
+                    "Friends" -> FriendsScreen(profile, language)
                     "Events" -> EventsScreen(language)
                     "Communities" -> CommunitiesScreen(language)
                     "Messages" -> MessagesScreen(profile, language)
@@ -1049,6 +1068,60 @@ private data class CommunityEvent(
     @SerialName("start_at") val startAt: String? = null,
     @SerialName("end_at") val endAt: String? = null
 )
+
+@Composable
+private fun FriendsScreen(profile: MemberProfile, language: String = "English") {
+    var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
+    var search by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        try {
+            members = Supabase.client.from("profiles").select {
+                filter { filter("member_status", FilterOperator.EQ, "approved") }
+                order("full_name", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+            }.decodeList<MemberProfile>().filter { it.id != profile.id }
+        } catch (_: Exception) {
+        } finally { loading = false }
+    }
+
+    val filtered = members.filter { member ->
+        val q = search.trim()
+        q.isBlank() || member.fullName.orEmpty().contains(q, true) ||
+            member.religiousName.orEmpty().contains(q, true) ||
+            member.province.orEmpty().contains(q, true) ||
+            member.community.orEmpty().contains(q, true) ||
+            member.ministry.orEmpty().contains(q, true)
+    }
+
+    Column(Modifier.fillMaxSize().padding(20.dp)) {
+        Text("Find Friends", style = MaterialTheme.typography.headlineMedium)
+        Text("Find approved members of the Camillian community.")
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Search by name, province, community or ministry") })
+        Spacer(Modifier.height(12.dp))
+        if (loading) CircularProgressIndicator()
+        else if (filtered.isEmpty()) Text(if (members.isEmpty()) "No other approved members found." else "No members match your search.")
+        else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
+            items(filtered, key = { it.id }) { member ->
+                Card(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (!member.avatarUrl.isNullOrBlank()) AsyncImage(model = member.avatarUrl, contentDescription = "Member photo", modifier = Modifier.size(56.dp), contentScale = ContentScale.Crop)
+                        else Image(painter = painterResource(id = R.drawable.camillian_logo), contentDescription = "Camillian logo", modifier = Modifier.size(56.dp), contentScale = ContentScale.Fit)
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member", style = MaterialTheme.typography.titleMedium)
+                            member.religiousName?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                            member.province?.takeIf { it.isNotBlank() }?.let { Text("Province: " + it, style = MaterialTheme.typography.bodySmall) }
+                            member.community?.takeIf { it.isNotBlank() }?.let { Text("Community: " + it, style = MaterialTheme.typography.bodySmall) }
+                            member.ministry?.takeIf { it.isNotBlank() }?.let { Text("Ministry: " + it, style = MaterialTheme.typography.bodySmall) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun EventsScreen(language: String = "English") {
