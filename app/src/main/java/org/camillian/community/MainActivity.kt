@@ -163,6 +163,7 @@ private fun HomeScreen(profile: MemberProfile) {
     var posting by remember { mutableStateOf(false) }
     var reactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var reactionCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var reactingPostId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun loadFeed() {
@@ -196,7 +197,9 @@ private fun HomeScreen(profile: MemberProfile) {
     }
 
     fun toggleLike(postId: String) {
+        if (reactingPostId != null) return
         scope.launch {
+            reactingPostId = postId
             try {
                 val existing = Supabase.client.from("post_reactions").select {
                     filter { filter("post_id", FilterOperator.EQ, postId) }
@@ -211,15 +214,27 @@ private fun HomeScreen(profile: MemberProfile) {
                         }
                     }
                 } else {
-                    Supabase.client.from("post_reactions").insert(buildJsonObject {
-                        put("post_id", postId)
-                        put("user_id", profile.id)
-                        put("reaction", "like")
-                    })
+                    try {
+                        Supabase.client.from("post_reactions").insert(buildJsonObject {
+                            put("post_id", postId)
+                            put("user_id", profile.id)
+                            put("reaction", "like")
+                        })
+                    } catch (e: Exception) {
+                        // A rapid double-tap can race the existence check.
+                        // If the database already has the unique reaction, simply refresh.
+                        if (!e.message.orEmpty().contains("23505") &&
+                            !e.message.orEmpty().contains("post_reactions_post_id_user_id_key")) {
+                            throw e
+                        }
+                    }
                 }
+                message = ""
                 loadReactions()
             } catch (e: Exception) {
                 message = e.message ?: "Could not update the reaction."
+            } finally {
+                reactingPostId = null
             }
         }
     }
@@ -323,8 +338,13 @@ private fun HomeScreen(profile: MemberProfile) {
                             Text(post.createdAt ?: "", style = MaterialTheme.typography.bodySmall)
                             Spacer(Modifier.height(6.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                TextButton(onClick = { toggleLike(post.id) }) {
-                                    Text(if (reactionIds.contains(post.id)) "Liked" else "Like")
+                                TextButton(
+                                    onClick = { toggleLike(post.id) },
+                                    enabled = reactingPostId == null
+                                ) {
+                                    Text(
+                                        if (reactingPostId == post.id) "Saving..." else if (reactionIds.contains(post.id)) "Liked" else "Like"
+                                    )
                                 }
                                 Text(reactionCounts[post.id]?.toString() ?: "0")
                             }
