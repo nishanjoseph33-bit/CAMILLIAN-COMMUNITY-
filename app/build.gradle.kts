@@ -18,8 +18,8 @@ android {
         val supabaseUrl = providers.environmentVariable("SUPABASE_URL").orNull ?: ""
         val supabaseKey = providers.environmentVariable("SUPABASE_PUBLISHABLE_KEY").orNull ?: ""
 
-        buildConfigField("String", "SUPABASE_URL", ""$supabaseUrl"")
-        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", ""$supabaseKey"")
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$supabaseKey\"")
     }
     buildFeatures {
         compose = true
