@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
@@ -266,6 +267,7 @@ private fun HomeScreen(profile: MemberProfile) {
     var reactingPostId by remember { mutableStateOf<String?>(null) }
     var commentPostId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         mediaUri = uri
         mediaKind = if (uri?.toString()?.contains("video", ignoreCase = true) == true) "video" else "photo"
@@ -353,9 +355,24 @@ private fun HomeScreen(profile: MemberProfile) {
                 var mediaUrl: String? = null
                 if (mediaUri != null) {
                     val uri = mediaUri!!
-                    val bytes = android.content.ContextWrapper(null)
-                    val input = androidx.compose.ui.platform.LocalContext.current.contentResolver.openInputStream(uri)
+                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                        ?: error("Could not read selected media.")
+                    val extension = if (mediaKind == "video") "mp4" else "jpg"
+                    val path = "posts/" + profile.id + "/" + System.currentTimeMillis() + "." + extension
+                    Supabase.client.storage["camillian-media"].upload(path, bytes, upsert = false)
+                    mediaUrl = Supabase.client.storage["camillian-media"].publicUrl(path)
                 }
+                Supabase.client.from("posts").insert(buildJsonObject {
+                    put("author_id", profile.id)
+                    put("kind", mediaKind ?: "text")
+                    put("text_content", text.ifBlank { null })
+                    put("media_url", mediaUrl)
+                    put("media_type", mediaKind)
+                })
+                composer = ""
+                mediaUri = null
+                mediaKind = null
+                loadFeed()
             } catch (e: Exception) {
                 message = e.message ?: "Could not publish your post."
             } finally { posting = false }
@@ -384,6 +401,14 @@ private fun HomeScreen(profile: MemberProfile) {
             Column(Modifier.padding(16.dp)) {
                 Text("Share with the community", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
+                if (mediaUri != null) {
+                    Text("Selected " + (mediaKind ?: "media"))
+                    TextButton(onClick = { mediaUri = null; mediaKind = null }) { Text("Remove") }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text("Photo") }
+                    OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text("Video") }
+                }
                 OutlinedTextField(
                     value = composer,
                     onValueChange = { composer = it },
@@ -394,7 +419,7 @@ private fun HomeScreen(profile: MemberProfile) {
                 Spacer(Modifier.height(8.dp))
                 Button(
                     onClick = { createPost() },
-                    enabled = !posting && composer.isNotBlank(),
+                    enabled = !posting && (composer.isNotBlank() || mediaUri != null),
                     modifier = Modifier.align(Alignment.End)
                 ) { Text(if (posting) "Publishing..." else "Publish") }
             }
