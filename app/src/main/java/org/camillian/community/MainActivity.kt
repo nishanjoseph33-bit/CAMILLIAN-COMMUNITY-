@@ -193,6 +193,23 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
     var recoveryModeActive by remember { mutableStateOf(recoveryMode) }
     var sessionLoading by remember { mutableStateOf(!recoveryMode && !inviteMode) }
     val appScope = rememberCoroutineScope()
+    var signingOut by remember { mutableStateOf(false) }
+
+    fun performLogout() {
+        if (signingOut) return
+        signingOut = true
+        appScope.launch {
+            try {
+                Supabase.client.auth.signOut()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not sign out. Please try again."
+            } finally {
+                // Always leave the dashboard/member shell after an explicit logout.
+                profile = null
+                signingOut = false
+            }
+        }
+    }
 
     LaunchedEffect(Unit) {
         if (!recoveryMode && !inviteMode) {
@@ -295,17 +312,11 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
                         }
                     )
                     "login" -> LoginScreen(language = language, onLanguageChange = { language = it }, onApproved = { profile = it }, onMessage = { message = it }, initialMessage = message)
-                    "admin" -> AdminDashboard(profile!!, language = language, onLanguageChange = { language = it }, onLogout = {
-                        appScope.launch {
-                            Supabase.client.auth.signOut()
-                            profile = null
-                        }
+                    "admin" -> AdminDashboard(profile!!, language = language, onLanguageChange = { language = it }, signingOut = signingOut, onLogout = {
+                        performLogout()
                     })
-                    else -> CommunityShell(profile!!, language = language, onLanguageChange = { language = it }, onProfileUpdated = { updated -> profile = updated }, onLogout = {
-                        appScope.launch {
-                            Supabase.client.auth.signOut()
-                            profile = null
-                        }
+                    else -> CommunityShell(profile!!, language = language, onLanguageChange = { language = it }, onProfileUpdated = { updated -> profile = updated }, signingOut = signingOut, onLogout = {
+                        performLogout()
                     })
                 }
             }
@@ -1832,7 +1843,7 @@ private fun localized(key: String, language: String): String {
 }
 
 @Composable
-private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, onLogout: () -> Unit) {
+private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, signingOut: Boolean = false, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("Home") }
     var messageConversation by remember { mutableStateOf<Conversation?>(null) }
     var activeChat by remember { mutableStateOf<Conversation?>(null) }
@@ -1896,7 +1907,7 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                         initialConversation = messageConversation,
                         onInitialConversationConsumed = { messageConversation = null }
                     )
-                    "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated)
+                    "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated, signingOut = signingOut)
                 }
             }
         }
@@ -2670,7 +2681,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
 }
 
 @Composable
-private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language: String = "English", onLanguageChange: (String) -> Unit = {}, onProfileUpdated: (MemberProfile) -> Unit = {}) {
+private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language: String = "English", onLanguageChange: (String) -> Unit = {}, onProfileUpdated: (MemberProfile) -> Unit = {}, signingOut: Boolean = false) {
     var fullName by remember { mutableStateOf(profile.fullName.orEmpty()) }
     var religiousName by remember { mutableStateOf(profile.religiousName.orEmpty()) }
     var phone by remember { mutableStateOf(profile.phone.orEmpty()) }
@@ -2856,8 +2867,8 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                 Text(message, color = MaterialTheme.colorScheme.primary)
             }
             item {
-                OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
-                    Text(localized("Sign out", language))
+                OutlinedButton(onClick = onLogout, enabled = !signingOut, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (signingOut) localized("Signing out...", language) else localized("Sign out", language))
                 }
             }
             item { Spacer(Modifier.height(80.dp)) }
@@ -2982,7 +2993,7 @@ private fun LanguageSelector(selected: String = "English", onSelected: (String) 
 }
 
 @Composable
-private fun AdminDashboard(profile: MemberProfile, language: String = "English", onLanguageChange: (String) -> Unit = {}, onLogout: () -> Unit) {
+private fun AdminDashboard(profile: MemberProfile, language: String = "English", onLanguageChange: (String) -> Unit = {}, signingOut: Boolean = false, onLogout: () -> Unit) {
     var status by remember { mutableStateOf("pending") }
     var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
     var message by remember { mutableStateOf("") }
@@ -3032,8 +3043,8 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
     ) {
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onLogout) {
-                Text(localized("Logout", language))
+            TextButton(onClick = onLogout, enabled = !signingOut) {
+                Text(if (signingOut) localized("Signing out...", language) else localized("Logout", language))
             }
 
             Column(Modifier.weight(1f)) {
