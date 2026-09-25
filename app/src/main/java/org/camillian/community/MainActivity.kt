@@ -13,6 +13,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -64,6 +66,7 @@ import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
@@ -174,9 +177,29 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
         else -> "home"
     }
 
-    AppBackground {
-        AnimatedContent(
-            targetState = destination,
+    var showLaunchSplash by remember { mutableStateOf(!(recoveryMode || inviteMode)) }
+    var splashLeaving by remember { mutableStateOf(false) }
+    val splashBlur by animateDpAsState(
+        targetValue = if (splashLeaving) 18.dp else 0.dp,
+        animationSpec = tween(durationMillis = 520),
+        label = "launch-splash-blur"
+    )
+
+    LaunchedEffect(Unit) {
+        if (!recoveryMode && !inviteMode) {
+            delay(1250)
+            splashLeaving = true
+            delay(550)
+            showLaunchSplash = false
+        }
+    }
+
+    if (showLaunchSplash) {
+        LaunchSplashScreen(blurRadius = splashBlur)
+    } else {
+        AppBackground {
+            AnimatedContent(
+                targetState = destination,
             transitionSpec = {
                 val entering = slideInHorizontally(initialOffsetX = { it / 7 }, animationSpec = tween(420)) + fadeIn(tween(260))
                 val exiting = slideOutHorizontally(targetOffsetX = { -it / 10 }, animationSpec = tween(360)) + fadeOut(tween(180))
@@ -216,6 +239,24 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun LaunchSplashScreen(blurRadius: androidx.compose.ui.unit.Dp) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.camillian_background),
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .blur(blurRadius),
+            contentScale = ContentScale.Crop
+        )
     }
 }
 
