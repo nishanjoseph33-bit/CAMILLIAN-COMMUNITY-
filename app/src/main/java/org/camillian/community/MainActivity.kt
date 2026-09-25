@@ -49,7 +49,6 @@ private data class MemberProfile(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        Supabase.client.handleDeeplinks(intent)
         setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) { App(recoveryMode = intent?.dataString?.contains("type=recovery") == true) } } }
     }
 }
@@ -413,7 +412,7 @@ private fun HomeScreen(profile: MemberProfile) {
                         ?: error("Could not read selected media.")
                     val extension = if (mediaKind == "video") "mp4" else "jpg"
                     val path = "posts/" + profile.id + "/" + System.currentTimeMillis() + "." + extension
-                    Supabase.client.storage.from("camillian-media").upload(path = path, data = bytes, upsert = false)
+                    Supabase.client.storage.from("camillian-media").upload(path, bytes) { upsert = false }
                     mediaUrl = Supabase.client.storage.from("camillian-media").publicUrl(path)
                 }
                 Supabase.client.from("posts").insert(buildJsonObject {
@@ -625,12 +624,6 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, onDismiss: ()
         confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
     )
 }
-
-
-    if (commentPostId != null) {
-        CommentsDialog(postId = commentPostId!!, profile = profile, onDismiss = { commentPostId = null })
-    }
-
 
 
 private fun localized(key: String, language: String): String {
