@@ -1418,7 +1418,34 @@ private fun localized(key: String, language: String): String {
         "Publishing..." to mapOf("Italiano" to "Pubblicazione...", "Español" to "Publicando...", "Português" to "Publicando...", "Français" to "Publication...", "Deutsch" to "Wird veröffentlicht...", "Tiếng Việt" to "Đang đăng...", "Filipino" to "Ipinapadala..."),
         "Saving..." to mapOf("Italiano" to "Salvataggio...", "Español" to "Guardando...", "Português" to "Salvando...", "Français" to "Enregistrement...", "Deutsch" to "Speichern...", "Tiếng Việt" to "Đang lưu...", "Filipino" to "Nagse-save..."),
         "Admin Dashboard" to mapOf("Italiano" to "Pannello amministratore", "Español" to "Panel de administración", "Português" to "Painel de administração", "Français" to "Tableau de bord administrateur", "Deutsch" to "Administrationsbereich", "Tiếng Việt" to "Bảng quản trị", "Filipino" to "Dashboard ng administrador"),
-        "Administrator" to mapOf("Italiano" to "Amministratore", "Español" to "Administrador", "Português" to "Administrador", "Français" to "Administrateur", "Deutsch" to "Administrator", "Tiếng Việt" to "Quản trị viên", "Filipino" to "Administrator")
+        "Administrator" to mapOf("Italiano" to "Amministratore", "Español" to "Administrador", "Português" to "Administrador", "Français" to "Administrateur", "Deutsch" to "Administrator", "Tiếng Việt" to "Quản trị viên", "Filipino" to "Administrator"),
+        "Language" to mapOf("Italiano" to "Lingua", "Español" to "Idioma", "Português" to "Idioma", "Français" to "Langue", "Deutsch" to "Sprache", "Tiếng Việt" to "Ngôn ngữ", "Filipino" to "Wika"),
+        "Refresh" to mapOf("Italiano" to "Aggiorna", "Español" to "Actualizar", "Português" to "Atualizar", "Français" to "Actualiser", "Deutsch" to "Aktualisieren", "Tiếng Việt" to "Làm mới", "Filipino" to "I-refresh"),
+        "Loading..." to mapOf("Italiano" to "Caricamento...", "Español" to "Cargando...", "Português" to "Carregando...", "Français" to "Chargement...", "Deutsch" to "Laden...", "Tiếng Việt" to "Đang tải...", "Filipino" to "Naglo-load..."),
+        "Post" to mapOf("Italiano" to "Post", "Español" to "Publicar", "Português" to "Publicação", "Français" to "Publication", "Deutsch" to "Beitrag", "Tiếng Việt" to "Bài đăng", "Filipino" to "Post"),
+        "Comments" to mapOf("Italiano" to "Commenti", "Español" to "Comentarios", "Português" to "Comentários", "Français" to "Commentaires", "Deutsch" to "Kommentare", "Tiếng Việt" to "Bình luận", "Filipino" to "Mga komento"),
+        "Write a comment..." to mapOf("Italiano" to "Scrivi un commento...", "Español" to "Escribe un comentario...", "Português" to "Escreva um comentário...", "Français" to "Écrivez un commentaire...", "Deutsch" to "Kommentar schreiben...", "Tiếng Việt" to "Viết bình luận...", "Filipino" to "Sumulat ng komento..."),
+        "Posting..." to mapOf("Italiano" to "Pubblicazione...", "Español" to "Publicando...", "Português" to "Publicando...", "Français" to "Publication...", "Deutsch" to "Wird veröffentlicht...", "Tiếng Việt" to "Đang đăng...", "Filipino" to "Ipinapadala..."),
+        "Save profile" to mapOf("Italiano" to "Salva profilo", "Español" to "Guardar perfil", "Português" to "Guardar perfil", "Français" to "Enregistrer le profil", "Deutsch" to "Profil speichern", "Tiếng Việt" to "Lưu hồ sơ", "Filipino" to "I-save ang profile"),
+        "Sign out" to mapOf("Italiano" to "Esci", "Español" to "Cerrar sesión", "Português" to "Sair", "Français" to "Se déconnecter", "Deutsch" to "Abmelden", "Tiếng Việt" to "Đăng xuất", "Filipino" to "Mag-sign out"),
+        "Choose profile photo" to mapOf("Italiano" to "Scegli foto profilo", "Español" to "Elegir foto de perfil", "Português" to "Escolher foto de perfil", "Français" to "Choisir une photo de profil", "Deutsch" to "Profilfoto auswählen", "Tiếng Việt" to "Chọn ảnh hồ sơ", "Filipino" to "Pumili ng profile photo"),
+        "Change profile photo" to mapOf("Italiano" to "Cambia foto profilo", "Español" to "Cambiar foto de perfil", "Português" to "Alterar foto de perfil", "Français" to "Changer la photo de profil", "Deutsch" to "Profilfoto ändern", "Tiếng Việt" to "Đổi ảnh hồ sơ", "Filipino" to "Palitan ang profile photo"),
+        "Name" to mapOf("Italiano" to "Nome", "Español" to "Nombre", "Português" to "Nome", "Français" to "Nom", "Deutsch" to "Name", "Tiếng Việt" to "Tên", "Filipino" to "Pangalan"),
+        "Religious name" to mapOf("Italiano" to "Nome religioso", "Español" to "Nombre religioso", "Português" to "Nome religioso", "Français" to "Nom religieux", "Deutsch" to "Ordensname", "Tiếng Việt" to "Tên tu sĩ", "Filipino" to "Religious name"),
+        "Phone" to mapOf("Italiano" to "Telefono", "Español" to "Teléfono", "Português" to "Telefone", "Français" to "Téléphone", "Deutsch" to "Telefon", "Tiếng Việt" to "Điện thoại", "Filipino" to "Telepono"),
+        "Place" to mapOf("Italiano" to "Luogo", "Español" to "Lugar", "Português" to "Local", "Français" to "Lieu", "Deutsch" to "Ort", "Tiếng Việt" to "Nơi", "Filipino" to "Lugar"),
+        "Delegation" to mapOf("Italiano" to "Delegazione", "Español" to "Delegación", "Português" to "Delegação", "Français" to "Délégation", "Deutsch" to "Delegation", "Tiếng Việt" to "Đoàn", "Filipino" to "Delegasyon"),
+        "Community" to mapOf("Italiano" to "Comunità", "Español" to "Comunidad", "Português" to "Comunidade", "Français" to "Communauté", "Deutsch" to "Gemeinschaft", "Tiếng Việt" to "Cộng đoàn", "Filipino" to "Komunidad"),
+        "Ministry" to mapOf("Italiano" to "Ministero", "Español" to "Ministerio", "Português" to "Ministério", "Français" to "Ministère", "Deutsch" to "Dienst", "Tiếng Việt" to "Mục vụ", "Filipino" to "Ministeryo"),
+        "Role / title" to mapOf("Italiano" to "Ruolo / titolo", "Español" to "Rol / título", "Português" to "Função / título", "Français" to "Rôle / titre", "Deutsch" to "Rolle / Titel", "Tiếng Việt" to "Vai trò / chức danh", "Filipino" to "Tungkulin / titulo"),
+        "Bio" to mapOf("Italiano" to "Biografia", "Español" to "Biografía", "Português" to "Biografia", "Français" to "Biographie", "Deutsch" to "Biografie", "Tiếng Việt" to "Tiểu sử", "Filipino" to "Bio"),
+        "Send" to mapOf("Italiano" to "Invia", "Español" to "Enviar", "Português" to "Enviar", "Français" to "Envoyer", "Deutsch" to "Senden", "Tiếng Việt" to "Gửi", "Filipino" to "Ipadala"),
+        "Back" to mapOf("Italiano" to "Indietro", "Español" to "Atrás", "Português" to "Voltar", "Français" to "Retour", "Deutsch" to "Zurück", "Tiếng Việt" to "Quay lại", "Filipino" to "Bumalik"),
+        "Accept" to mapOf("Italiano" to "Accetta", "Español" to "Aceptar", "Português" to "Aceitar", "Français" to "Accepter", "Deutsch" to "Annehmen", "Tiếng Việt" to "Chấp nhận", "Filipino" to "Tanggapin"),
+        "Decline" to mapOf("Italiano" to "Rifiuta", "Español" to "Rechazar", "Português" to "Recusar", "Français" to "Refuser", "Deutsch" to "Ablehnen", "Tiếng Việt" to "Từ chối", "Filipino" to "Tanggihan"),
+        "Add Friend" to mapOf("Italiano" to "Aggiungi amico", "Español" to "Añadir amigo", "Português" to "Adicionar amigo", "Français" to "Ajouter un ami", "Deutsch" to "Freund hinzufügen", "Tiếng Việt" to "Thêm bạn", "Filipino" to "Magdagdag ng kaibigan"),
+        "Request sent" to mapOf("Italiano" to "Richiesta inviata", "Español" to "Solicitud enviada", "Português" to "Pedido enviado", "Français" to "Demande envoyée", "Deutsch" to "Anfrage gesendet", "Tiếng Việt" to "Đã gửi lời mời", "Filipino" to "Naipadala ang request"),
+        "This member sent you a request" to mapOf("Italiano" to "Questo membro ti ha inviato una richiesta", "Español" to "Este miembro te envió una solicitud", "Português" to "Este membro enviou um pedido", "Français" to "Ce membre vous a envoyé une demande", "Deutsch" to "Dieses Mitglied hat dir eine Anfrage gesendet", "Tiếng Việt" to "Thành viên này đã gửi lời mời cho bạn", "Filipino" to "Nagpadala sa iyo ng request ang miyembrong ito")
     )
     return if (language == "English") key else data[key]?.get(language) ?: key
 }
@@ -1556,7 +1583,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(localized("Find Friends", language), style = MaterialTheme.typography.headlineMedium)
-                Text("Find and connect with Camillian members.")
+                Text(localized("Find and connect with Camillian members.", language))
             }
             TextButton(onClick = { showNotifications = !showNotifications }) {
                 Text(
@@ -1572,7 +1599,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                     Text("Notifications", style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.height(6.dp))
                     if (notifications.isEmpty()) {
-                        Text("No notifications yet.")
+                        Text(localized("No notifications yet.", language))
                     } else {
                         notifications.take(10).forEach { notification ->
                             Text(notification.title, fontWeight = FontWeight.SemiBold)
@@ -1602,7 +1629,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
             Spacer(Modifier.height(10.dp))
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp)) {
-                    Text("Friend Requests", style = MaterialTheme.typography.titleLarge)
+                    Text(localized("Friend Requests", language), style = MaterialTheme.typography.titleLarge)
                     incoming.forEach { request ->
                         Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("New friend request", modifier = Modifier.weight(1f))
@@ -1616,7 +1643,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                                         message = "Friend request accepted."
                                     } catch (e: Exception) { message = e.message ?: "Could not accept request." }
                                 }
-                            }) { Text("Accept") }
+                            }) { Text(localized("Accept", language)) }
                             TextButton(onClick = {
                                 scope.launch {
                                     try {
@@ -1627,7 +1654,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                                         message = "Friend request declined."
                                     } catch (e: Exception) { message = e.message ?: "Could not decline request." }
                                 }
-                            }) { Text("Decline") }
+                            }) { Text(localized("Decline", language)) }
                         }
                     }
                 }
@@ -1670,8 +1697,8 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                         Spacer(Modifier.height(10.dp))
                         when (statuses[member.id]) {
                             "friends" -> Text("Friends", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                            "outgoing" -> Text("Request sent", color = MaterialTheme.colorScheme.secondary)
-                            "incoming" -> Text("This member sent you a request", color = MaterialTheme.colorScheme.secondary)
+                            "outgoing" -> Text(localized("Request sent", language), color = MaterialTheme.colorScheme.secondary)
+                            "incoming" -> Text(localized("This member sent you a request", language), color = MaterialTheme.colorScheme.secondary)
                             else -> Button(onClick = {
                                 CoroutineScope(Dispatchers.Main).launch {
                                     try {
@@ -1680,7 +1707,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                                         message = "Friend request sent."
                                     } catch (e: Exception) { message = e.message ?: "Could not send request." }
                                 }
-                            }) { Text("Add Friend") }
+                            }) { Text(localized("Add Friend", language)) }
                         }
                     }
                 }
@@ -1732,10 +1759,10 @@ private fun EventsScreen(language: String = "English") {
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         Text(localized("Events", language), style = MaterialTheme.typography.headlineMedium)
-        Text("Retreats, conferences, chapters, feast days and community events.")
+        Text(localized("Retreats, conferences, chapters, feast days and community events.", language))
         Spacer(Modifier.height(16.dp))
         if (loading) CircularProgressIndicator()
-        else if (events.isEmpty()) Text("No events have been published yet.")
+        else if (events.isEmpty()) Text(localized("No events have been published yet.", language))
         else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(events, key = { it.id }) { event ->
                 Card(Modifier.fillMaxWidth()) {
@@ -1781,10 +1808,10 @@ private fun CommunitiesScreen(language: String = "English") {
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         Text(localized("Communities", language), style = MaterialTheme.typography.headlineMedium)
-        Text("Provinces, delegations, communities and formation houses.")
+        Text(localized("Provinces, delegations, communities and formation houses.", language))
         Spacer(Modifier.height(16.dp))
         if (loading) CircularProgressIndicator()
-        else if (organizations.isEmpty()) Text("No communities have been added yet.")
+        else if (organizations.isEmpty()) Text(localized("No communities have been added yet.", language))
         else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             items(organizations, key = { it.id }) { org ->
                 Card(Modifier.fillMaxWidth()) {
@@ -1852,10 +1879,10 @@ private fun MessagesScreen(profile: MemberProfile, language: String = "English")
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         Text(localized("Messages", language), style = MaterialTheme.typography.headlineMedium)
-        Text("Private and community conversations.")
+        Text(localized("Private and community conversations.", language))
         Spacer(Modifier.height(16.dp))
         if (loading) CircularProgressIndicator()
-        else if (conversations.isEmpty()) Text("No conversations yet.")
+        else if (conversations.isEmpty()) Text(localized("No conversations yet.", language))
         else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(conversations, key = { it.id }) { conversation ->
                 Card(Modifier.fillMaxWidth()) {
@@ -1938,12 +1965,12 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, onBac
                 value = composer,
                 onValueChange = { composer = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Message...") },
+                placeholder = { Text(localized("Message...", language)) },
                 maxLines = 3
             )
             Spacer(Modifier.width(8.dp))
             Button(onClick = { send() }, enabled = !sending && composer.isNotBlank()) {
-                Text(if (sending) "..." else "Send")
+                Text(if (sending) "..." else localized("Send", language))
             }
         }
     }
@@ -1971,7 +1998,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
     val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> avatarUri = uri }
 
     Column(Modifier.fillMaxSize()) {
-        Text("My Profile", style = MaterialTheme.typography.headlineMedium,
+        Text(localized("My Profile", language), style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(20.dp))
         LanguageSelector(selected = language, onSelected = onLanguageChange)
         LazyColumn(
@@ -1992,16 +2019,16 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                 }
             }
             item { Text(profile.email ?: "") }
-            item { OutlinedTextField(fullName, { fullName = it }, Modifier.fillMaxWidth(), label = { Text("Name") }) }
-            item { OutlinedTextField(religiousName, { religiousName = it }, Modifier.fillMaxWidth(), label = { Text("Religious name") }) }
-            item { OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text("Phone") }) }
-            item { OutlinedTextField(place, { place = it }, Modifier.fillMaxWidth(), label = { Text("Place") }) }
-            item { OutlinedTextField(province, { province = it }, Modifier.fillMaxWidth(), label = { Text("Province") }) }
-            item { OutlinedTextField(delegation, { delegation = it }, Modifier.fillMaxWidth(), label = { Text("Delegation") }) }
-            item { OutlinedTextField(community, { community = it }, Modifier.fillMaxWidth(), label = { Text("Community") }) }
-            item { OutlinedTextField(ministry, { ministry = it }, Modifier.fillMaxWidth(), label = { Text("Ministry") }) }
-            item { OutlinedTextField(roleTitle, { roleTitle = it }, Modifier.fillMaxWidth(), label = { Text("Role / title") }) }
-            item { OutlinedTextField(bio, { bio = it }, Modifier.fillMaxWidth(), minLines = 4, label = { Text("Bio") }) }
+            item { OutlinedTextField(fullName, { fullName = it }, Modifier.fillMaxWidth(), label = { Text(localized("Name", language)) }) }
+            item { OutlinedTextField(religiousName, { religiousName = it }, Modifier.fillMaxWidth(), label = { Text(localized("Religious name", language)) }) }
+            item { OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text(localized("Phone", language)) }) }
+            item { OutlinedTextField(place, { place = it }, Modifier.fillMaxWidth(), label = { Text(localized("Place", language)) }) }
+            item { OutlinedTextField(province, { province = it }, Modifier.fillMaxWidth(), label = { Text(localized("Province", language)) }) }
+            item { OutlinedTextField(delegation, { delegation = it }, Modifier.fillMaxWidth(), label = { Text(localized("Delegation", language)) }) }
+            item { OutlinedTextField(community, { community = it }, Modifier.fillMaxWidth(), label = { Text(localized("Community", language)) }) }
+            item { OutlinedTextField(ministry, { ministry = it }, Modifier.fillMaxWidth(), label = { Text(localized("Ministry", language)) }) }
+            item { OutlinedTextField(roleTitle, { roleTitle = it }, Modifier.fillMaxWidth(), label = { Text(localized("Role / title", language)) }) }
+            item { OutlinedTextField(bio, { bio = it }, Modifier.fillMaxWidth(), minLines = 4, label = { Text(localized("Bio", language)) }) }
             item {
                 Button(
                     onClick = {
@@ -2056,7 +2083,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                     },
                     enabled = !saving,
                     modifier = Modifier.fillMaxWidth()
-                ) { Text(if (saving) "Saving..." else "Save profile") }
+                ) { Text(if (saving) localized("Saving...", language) else localized("Save profile", language)) }
             }
             if (message.isNotBlank()) item {
                 Text(message, color = MaterialTheme.colorScheme.primary)
@@ -2089,8 +2116,8 @@ private fun AdminTools(profile: MemberProfile, language: String = "English") {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(localized("Administration tools", language), style = MaterialTheme.typography.titleLarge)
-            Text("Invite a member by email", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(inviteEmail, { inviteEmail = it }, Modifier.fillMaxWidth(), label = { Text("Member email") }, singleLine = true)
+            Text(localized("Invite a member by email", language), style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(inviteEmail, { inviteEmail = it }, Modifier.fillMaxWidth(), label = { Text(localized("Member email", language)) }, singleLine = true)
             Button(enabled = !inviteSending && inviteEmail.contains("@"), onClick = {
                 scope.launch {
                     inviteSending = true
@@ -2103,12 +2130,12 @@ private fun AdminTools(profile: MemberProfile, language: String = "English") {
                         inviteMessage = e.message ?: "Could not send invitation."
                     } finally { inviteSending = false }
                 }
-            }) { Text(if (inviteSending) "Sending..." else "Send invitation") }
+            }) { Text(if (inviteSending) localized("Sending...", language) else localized("Send invitation", language)) }
             if (inviteMessage.isNotBlank()) Text(inviteMessage, color = MaterialTheme.colorScheme.primary)
 
             HorizontalDivider()
-            Text("Legacy invitation code", style = MaterialTheme.typography.titleMedium)
-            OutlinedTextField(inviteCode, { inviteCode = it }, Modifier.fillMaxWidth(), label = { Text("New invitation code") })
+            Text(localized("Legacy invitation code", language), style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(inviteCode, { inviteCode = it }, Modifier.fillMaxWidth(), label = { Text(localized("New invitation code", language)) })
             Button(enabled = !busy && inviteCode.length >= 6, onClick = {
                 scope.launch {
                     busy = true
@@ -2123,10 +2150,10 @@ private fun AdminTools(profile: MemberProfile, language: String = "English") {
                     } catch (e: Exception) { message = e.message ?: "Could not create invitation code." }
                     finally { busy = false }
                 }
-            }) { Text("Create invitation code") }
+            }) { Text(localized("Create invitation code", language)) }
 
             HorizontalDivider()
-            OutlinedTextField(announcement, { announcement = it }, Modifier.fillMaxWidth(), minLines = 3, label = { Text("Announcement / news") })
+            OutlinedTextField(announcement, { announcement = it }, Modifier.fillMaxWidth(), minLines = 3, label = { Text(localized("Announcement / news", language)) })
             Button(enabled = !busy && announcement.isNotBlank(), onClick = {
                 scope.launch {
                     busy = true
@@ -2140,12 +2167,12 @@ private fun AdminTools(profile: MemberProfile, language: String = "English") {
                     } catch (e: Exception) { message = e.message ?: "Could not publish announcement." }
                     finally { busy = false }
                 }
-            }) { Text("Publish announcement") }
+            }) { Text(localized("Publish announcement", language)) }
 
             HorizontalDivider()
-            OutlinedTextField(eventTitle, { eventTitle = it }, Modifier.fillMaxWidth(), label = { Text("Event title") })
-            OutlinedTextField(eventLocation, { eventLocation = it }, Modifier.fillMaxWidth(), label = { Text("Event location") })
-            OutlinedTextField(eventDescription, { eventDescription = it }, Modifier.fillMaxWidth(), minLines = 2, label = { Text("Event description") })
+            OutlinedTextField(eventTitle, { eventTitle = it }, Modifier.fillMaxWidth(), label = { Text(localized("Event title", language)) })
+            OutlinedTextField(eventLocation, { eventLocation = it }, Modifier.fillMaxWidth(), label = { Text(localized("Event location", language)) })
+            OutlinedTextField(eventDescription, { eventDescription = it }, Modifier.fillMaxWidth(), minLines = 2, label = { Text(localized("Event description", language)) })
             Button(enabled = !busy && eventTitle.isNotBlank(), onClick = {
                 scope.launch {
                     busy = true
@@ -2160,7 +2187,7 @@ private fun AdminTools(profile: MemberProfile, language: String = "English") {
                     } catch (e: Exception) { message = e.message ?: "Could not create event." }
                     finally { busy = false }
                 }
-            }) { Text("Create event") }
+            }) { Text(localized("Create event", language)) }
 
             if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.primary)
         }
@@ -2175,7 +2202,7 @@ private fun LanguageSelector(selected: String = "English", onSelected: (String) 
     )
     var expanded by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { expanded = true }) { Text("Language: " + selected) }
+        OutlinedButton(onClick = { expanded = true }) { Text(localized("Language", selected) + ": " + selected) }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             languages.forEach { language ->
                 DropdownMenuItem(
@@ -2239,15 +2266,16 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onLogout) {
-                Text("Logout")
+                Text(localized("Logout", language))
             }
 
             Column(Modifier.weight(1f)) {
                 Text(localized("Admin Dashboard", language), style = MaterialTheme.typography.headlineMedium)
                 Text("${localized("Administrator", language)}: ${profile.fullName ?: profile.email ?: "Admin"}")
             }
+            LanguageSelector(selected = language, onSelected = onLanguageChange)
             TextButton(onClick = { loadMembers() }, enabled = !loading) {
-                Text(if (loading) "Loading..." else "Refresh")
+                Text(if (loading) localized("Loading...", language) else localized("Refresh", language))
             }
         }
 
@@ -2294,13 +2322,13 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
                             OutlinedButton(
                                 onClick = { changeStatus(member, "rejected") },
                                 enabled = actionMemberId == null
-                            ) { Text("Reject") }
+                            ) { Text(localized("Reject", language)) }
                         }
                         if (member.memberStatus != "suspended") {
                             OutlinedButton(
                                 onClick = { changeStatus(member, "suspended") },
                                 enabled = actionMemberId == null
-                            ) { Text("Suspend") }
+                            ) { Text(localized("Suspend", language)) }
                         }
                     }
                 }
@@ -2310,7 +2338,7 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
         if (!loading && members.isEmpty()) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(20.dp)) {
-                    Text("No members in ${status.replaceFirstChar { it.uppercase() }}.", style = MaterialTheme.typography.titleMedium)
+                    Text(localized("No members in ${status.replaceFirstChar { it.uppercase() }}.", language), style = MaterialTheme.typography.titleMedium)
                     if (status == "pending") {
                         Spacer(Modifier.height(6.dp))
                         Text("If you just added a member in Supabase, tap Refresh.")
