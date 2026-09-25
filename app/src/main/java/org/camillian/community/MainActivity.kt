@@ -84,6 +84,15 @@ private data class MemberProfile(
 )
 
 class MainActivity : ComponentActivity() {
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        Supabase.client.handleDeeplinks(intent)
+        if (intent.dataString?.contains("type=recovery") == true) {
+            recreate()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Supabase.client.handleDeeplinks(intent)
