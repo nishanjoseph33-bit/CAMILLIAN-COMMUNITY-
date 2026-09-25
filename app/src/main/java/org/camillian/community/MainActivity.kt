@@ -1678,6 +1678,7 @@ private fun localized(key: String, language: String): String {
 @Composable
 private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("Home") }
+    var messageConversation by remember { mutableStateOf<Conversation?>(null) }
 
     Scaffold(
         bottomBar = {
@@ -1715,10 +1716,18 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
             Box(Modifier.fillMaxSize().padding(padding)) {
                 when (currentTab) {
                     "Home" -> HomeScreen(profile, language)
-                    "Friends" -> FriendsScreen(profile, language)
+                    "Friends" -> FriendsScreen(profile, language, onOpenChat = { conversation ->
+                        messageConversation = conversation
+                        tab = "Messages"
+                    })
                     "Events" -> EventsScreen(language)
                     "Communities" -> CommunitiesScreen(language)
-                    "Messages" -> MessagesScreen(profile, language)
+                    "Messages" -> MessagesScreen(
+                        profile,
+                        language,
+                        initialConversation = messageConversation,
+                        onInitialConversationConsumed = { messageConversation = null }
+                    )
                     "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated)
                 }
             }
@@ -1737,7 +1746,11 @@ private data class CommunityEvent(
 )
 
 @Composable
-private fun FriendsScreen(profile: MemberProfile, language: String = "English") {
+private fun FriendsScreen(
+    profile: MemberProfile,
+    language: String = "English",
+    onOpenChat: (Conversation) -> Unit = {}
+) {
     var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
     var statuses by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var incoming by remember { mutableStateOf<List<FriendRequest>>(emptyList()) }
@@ -1746,13 +1759,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
     var message by remember { mutableStateOf("") }
     var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
     var showNotifications by remember { mutableStateOf(false) }
-    var selectedChat by remember { mutableStateOf<Conversation?>(null) }
     val scope = rememberCoroutineScope()
-
-    if (selectedChat != null) {
-        ChatScreen(profile, selectedChat!!, language = language, onBack = { selectedChat = null })
-        return
-    }
 
     fun openFriendChat(memberId: String) {
         scope.launch {
@@ -1766,8 +1773,9 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                 }.decodeList<ConversationMember>()
                 val common = mine.map { it.conversationId }.intersect(theirs.map { it.conversationId }.toSet())
                 val conversations = Supabase.client.from("conversations").select().decodeList<Conversation>()
-                selectedChat = conversations.firstOrNull { it.id in common && !it.isGroup }
+                val conversation = conversations.firstOrNull { it.id in common && !it.isGroup }
                     ?: error("Could not open the private conversation.")
+                onOpenChat(conversation)
             } catch (e: Exception) {
                 message = e.message ?: "Could not open the conversation."
             }
@@ -2109,10 +2117,22 @@ private data class ChatMessage(
 )
 
 @Composable
-private fun MessagesScreen(profile: MemberProfile, language: String = "English") {
+private fun MessagesScreen(
+    profile: MemberProfile,
+    language: String = "English",
+    initialConversation: Conversation? = null,
+    onInitialConversationConsumed: () -> Unit = {}
+) {
     var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
-    var selected by remember { mutableStateOf<Conversation?>(null) }
+    var selected by remember { mutableStateOf<Conversation?>(initialConversation) }
     var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(initialConversation?.id) {
+        if (initialConversation != null) {
+            selected = initialConversation
+            onInitialConversationConsumed()
+        }
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -2137,7 +2157,7 @@ private fun MessagesScreen(profile: MemberProfile, language: String = "English")
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         Text(localized("Messages", language), style = MaterialTheme.typography.headlineMedium)
-        Text(localized("Private and community conversations.", language))
+        Text(localized("Private and community conversations. Tap a conversation to open the message page.", language))
         Spacer(Modifier.height(16.dp))
         if (loading) CircularProgressIndicator()
         else if (conversations.isEmpty()) Text(localized("No conversations yet.", language))
@@ -2166,9 +2186,10 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
     var sending by remember { mutableStateOf(false) }
     var translatedMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var translatingMessageId by remember { mutableStateOf<String?>(null) }
+    var otherMemberName by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    fun load() {
+    fun loadMessages() {
         scope.launch {
             try {
                 messages = Supabase.client.from("messages").select {
@@ -2182,7 +2203,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
 
     fun send() {
         val text = composer.trim()
-        if (text.isEmpty()) return
+        if (text.isEmpty() || sending) return
         scope.launch {
             sending = true
             try {
@@ -2192,7 +2213,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                     put("message_text", text)
                 })
                 composer = ""
-                load()
+                loadMessages()
             } catch (_: Exception) {
             } finally {
                 sending = false
@@ -2200,80 +2221,151 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
         }
     }
 
-    LaunchedEffect(Unit) { load() }
-
-    Column(Modifier.fillMaxSize().padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = onBack) { Text(localized("Back", language)) }
-            Text(conversation.title ?: localized("Conversation", language), style = MaterialTheme.typography.titleLarge)
+    LaunchedEffect(conversation.id) {
+        try {
+            val memberships = Supabase.client.from("conversation_members").select {
+                filter { filter("conversation_id", FilterOperator.EQ, conversation.id) }
+            }.decodeList<ConversationMember>()
+            val otherId = memberships.firstOrNull { it.userId != profile.id }?.userId
+            if (otherId != null) {
+                val other = Supabase.client.from("profiles").select {
+                    filter { filter("id", FilterOperator.EQ, otherId) }
+                }.decodeList<MemberProfile>().firstOrNull()
+                otherMemberName = other?.fullName?.takeIf { it.isNotBlank() }
+            }
+        } catch (_: Exception) {
         }
+        loadMessages()
+    }
+
+    // Keep both sides' messages visible without requiring the user to leave the page.
+    LaunchedEffect(conversation.id) {
+        while (true) {
+            delay(2500)
+            loadMessages()
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onBack) { Text(localized("Back", language)) }
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        otherMemberName ?: conversation.title ?: localized("Conversation", language),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        localized("Private conversation", language),
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            }
+        }
+
         LazyColumn(
-            Modifier.weight(1f).fillMaxWidth(),
+            Modifier.weight(1f).fillMaxWidth().padding(horizontal = 12.dp),
+            reverseLayout = false,
             verticalArrangement = Arrangement.spacedBy(8.dp),
-            contentPadding = PaddingValues(vertical = 8.dp)
+            contentPadding = PaddingValues(vertical = 12.dp)
         ) {
             items(messages, key = { it.id }) { item ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(12.dp)) {
-                        Text(if (item.senderId == profile.id) localized("You", language) else localized("Member", language))
-                        Text(item.messageText)
-                        translatedMessages[item.id]?.let { translated ->
-                            Spacer(Modifier.height(5.dp))
-                            Surface(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp),
-                                color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f)
-                            ) {
-                                Column(Modifier.padding(8.dp)) {
-                                    Text(localized("Translation", language), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-                                    Text(translated)
-                                }
+                val mine = item.senderId == profile.id
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
+                ) {
+                    Card(
+                        modifier = Modifier.widthIn(max = 310.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (mine)
+                                MaterialTheme.colorScheme.primaryContainer
+                            else
+                                MaterialTheme.colorScheme.surfaceVariant
+                        ),
+                        shape = RoundedCornerShape(18.dp)
+                    ) {
+                        Column(Modifier.padding(12.dp)) {
+                            Text(item.messageText)
+                            translatedMessages[item.id]?.let { translated ->
+                                Spacer(Modifier.height(6.dp))
+                                HorizontalDivider()
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    localized("Translation", language),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.secondary
+                                )
+                                Text(translated)
                             }
-                        }
-                        TextButton(
-                            onClick = {
-                                if (translatedMessages.containsKey(item.id)) {
-                                    translatedMessages = translatedMessages - item.id
-                                } else {
-                                    scope.launch {
-                                        translatingMessageId = item.id
-                                        try {
-                                            translatedMessages = translatedMessages + (item.id to translateText(item.messageText, language))
-                                        } catch (_: Exception) {
-                                        } finally {
-                                            translatingMessageId = null
+                            TextButton(
+                                onClick = {
+                                    if (translatedMessages.containsKey(item.id)) {
+                                        translatedMessages = translatedMessages - item.id
+                                    } else {
+                                        scope.launch {
+                                            translatingMessageId = item.id
+                                            try {
+                                                translatedMessages = translatedMessages +
+                                                    (item.id to translateText(item.messageText, language))
+                                            } catch (_: Exception) {
+                                            } finally {
+                                                translatingMessageId = null
+                                            }
                                         }
                                     }
-                                }
-                            },
-                            enabled = translatingMessageId == null
-                        ) {
-                            Text(
-                                if (translatingMessageId == item.id) localized("Translating...", language)
-                                else if (translatedMessages.containsKey(item.id)) localized("Hide translation", language)
-                                else localized("Translate", language)
-                            )
+                                },
+                                enabled = translatingMessageId == null,
+                                contentPadding = PaddingValues(0.dp)
+                            ) {
+                                Text(
+                                    if (translatingMessageId == item.id) localized("Translating...", language)
+                                    else if (translatedMessages.containsKey(item.id)) localized("Hide translation", language)
+                                    else localized("Translate", language)
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = composer,
-                onValueChange = { composer = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text(localized("Message...", language)) },
-                maxLines = 4,
-                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
-                    imeAction = androidx.compose.ui.text.input.ImeAction.Send
-                ),
-                keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSend = { send() })
-            )
-            Spacer(Modifier.width(8.dp))
-            Button(onClick = { send() }, enabled = !sending && composer.isNotBlank()) {
-                Text(if (sending) "..." else localized("Send", language))
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 4.dp
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(10.dp),
+                verticalAlignment = Alignment.Bottom
+            ) {
+                OutlinedTextField(
+                    value = composer,
+                    onValueChange = { composer = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text(localized("Message...", language)) },
+                    maxLines = 5,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
+                        imeAction = androidx.compose.ui.text.input.ImeAction.Send
+                    ),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSend = { send() }),
+                    shape = RoundedCornerShape(22.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Button(
+                    onClick = { send() },
+                    enabled = !sending && composer.isNotBlank(),
+                    shape = RoundedCornerShape(20.dp)
+                ) {
+                    Text(if (sending) "..." else localized("Send", language))
+                }
             }
         }
     }
