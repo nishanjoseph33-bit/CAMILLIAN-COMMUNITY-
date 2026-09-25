@@ -794,57 +794,57 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
         loadReactions()
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().background(Color(0xFFFFFBFB))) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                Text("Camillian Community", style = MaterialTheme.typography.headlineSmall)
-                Text("Welcome, " + (profile.fullName ?: profile.email ?: "Member"))
+            Surface(
+                modifier = Modifier.size(42.dp),
+                shape = RoundedCornerShape(50),
+                color = Color.White,
+                shadowElevation = 5.dp
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.camillian_logo),
+                    contentDescription = "Camillian",
+                    modifier = Modifier.padding(6.dp),
+                    contentScale = ContentScale.Fit
+                )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = { showComposer = !showComposer }) {
-                    Text(if (showComposer) "×" else "+")
-                }
-                TextButton(onClick = { loadFeed() }) { Text("Refresh") }
+            Spacer(Modifier.width(10.dp))
+            Text("Camillian", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f))
+            TextButton(onClick = { showComposer = true }) {
+                Text("+", fontSize = 28.sp, fontWeight = FontWeight.Light)
             }
+            TextButton(onClick = { loadFeed() }) { Text("↻", fontSize = 22.sp) }
         }
 
         if (showComposer) {
-            Card(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) {
                 Column(Modifier.padding(16.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text("Share with the community", style = MaterialTheme.typography.titleMedium)
-                        TextButton(onClick = {
-                            showComposer = false
-                            mediaUri = null
-                            mediaKind = null
-                        }) { Text("Close") }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    if (mediaUri != null) {
-                        Text("Selected " + (mediaKind ?: "media"))
-                        TextButton(onClick = { mediaUri = null; mediaKind = null }) { Text("Remove") }
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Share with the community", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { showComposer = false }) { Text("Close") }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text("Photo") }
                         OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text("Video") }
                     }
+                    Spacer(Modifier.height(8.dp))
                     Box {
                         OutlinedButton(onClick = { provinceMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (postProvince.isBlank()) "Add province" else "Province: " + postProvince)
+                            Text(if (postProvince.isBlank()) "Add province" else "Province: $postProvince")
                         }
                         DropdownMenu(expanded = provinceMenuExpanded, onDismissRequest = { provinceMenuExpanded = false }) {
-                            if (profile.province.isNullOrBlank()) {
-                                DropdownMenuItem(text = { Text("No province set in profile") }, onClick = { provinceMenuExpanded = false })
-                            } else {
-                                DropdownMenuItem(text = { Text("Province: " + profile.province) }, onClick = { postProvince = profile.province.orEmpty(); provinceMenuExpanded = false })
+                            if (!profile.province.isNullOrBlank()) {
+                                DropdownMenuItem(
+                                    text = { Text("Province: " + profile.province) },
+                                    onClick = { postProvince = profile.province.orEmpty(); provinceMenuExpanded = false }
+                                )
                             }
                             DropdownMenuItem(text = { Text("Clear province") }, onClick = { postProvince = ""; provinceMenuExpanded = false })
                         }
@@ -854,21 +854,76 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                         value = composer,
                         onValueChange = { composer = it },
                         modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Write a reflection, news update, or message...") },
-                        minLines = 3
+                        placeholder = { Text("Write something for the community...") },
+                        minLines = 3,
+                        shape = RoundedCornerShape(16.dp)
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(
                         onClick = { createPost() },
                         enabled = !posting && (composer.isNotBlank() || mediaUri != null),
-                        modifier = Modifier.align(Alignment.End)
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(18.dp)
                     ) { Text(if (posting) "Publishing..." else "Publish") }
                 }
             }
         }
 
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Surface(
+                modifier = Modifier.width(68.dp),
+                shape = RoundedCornerShape(34.dp),
+                color = MaterialTheme.colorScheme.primary,
+                shadowElevation = 3.dp,
+                onClick = { showComposer = true }
+            ) {
+                Column(Modifier.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("+", color = Color.White, fontSize = 28.sp)
+                    Text("Post", color = Color.White, fontSize = 11.sp)
+                }
+            }
+            authorProfiles.values.take(12).forEach { author ->
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(68.dp)) {
+                    Surface(
+                        modifier = Modifier.size(58.dp),
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        shadowElevation = 2.dp
+                    ) {
+                        if (!author.avatarUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = author.avatarUrl,
+                                contentDescription = author.fullName ?: "Member",
+                                modifier = Modifier.padding(3.dp).clip(RoundedCornerShape(50)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Image(
+                                painter = painterResource(id = R.drawable.camillian_logo),
+                                contentDescription = "Camillian member",
+                                modifier = Modifier.padding(8.dp),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        author.fullName?.substringBefore(" ")?.take(10) ?: "Member",
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+        }
+
+        HorizontalDivider()
+
         if (message.isNotBlank()) {
-            Text(message, modifier = Modifier.padding(20.dp), color = MaterialTheme.colorScheme.error)
+            Text(message, modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), color = MaterialTheme.colorScheme.error)
         }
 
         if (loading) {
@@ -882,55 +937,80 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
         } else {
             LazyColumn(
                 Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                contentPadding = PaddingValues(top = 8.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 items(posts, key = { it.id }) { post ->
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(16.dp)) {
-                            Text(
-                                when (post.kind) {
-                                    "news" -> "Camillian News"
-                                    "announcement" -> "Announcement"
-                                    "scripture" -> "Scripture"
-                                    "reflection" -> "Reflection"
-                                    else -> "Community Post"
-                                },
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(Modifier.height(6.dp))
+                    Card(
+                        Modifier.fillMaxWidth().padding(horizontal = 10.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Column {
                             val author = authorProfiles[post.authorId]
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                if (!author?.avatarUrl.isNullOrBlank()) {
-                                    AsyncImage(model = author?.avatarUrl, contentDescription = "Member photo", modifier = Modifier.size(44.dp), contentScale = ContentScale.Crop)
-                                    Spacer(Modifier.width(10.dp))
-                                }
-                                Text(author?.fullName?.takeIf { it.isNotBlank() } ?: author?.email ?: "Member", style = MaterialTheme.typography.titleMedium)
-                            }
-                            Spacer(Modifier.height(8.dp))
-                            if (!post.mediaUrl.isNullOrBlank()) {
-                                AsyncImage(model = post.mediaUrl, contentDescription = "Post media", modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp), contentScale = ContentScale.Crop)
-                                Spacer(Modifier.height(8.dp))
-                            }
-                            if (!post.textContent.isNullOrBlank()) Text(post.textContent)
-                            Spacer(Modifier.height(8.dp))
-                            Text(post.createdAt ?: "", style = MaterialTheme.typography.bodySmall)
-                            Spacer(Modifier.height(6.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                TextButton(
-                                    onClick = { toggleLike(post.id) },
-                                    enabled = reactingPostId == null
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Surface(
+                                    modifier = Modifier.size(46.dp),
+                                    shape = RoundedCornerShape(50),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                                 ) {
-                                    Text(
-                                        if (reactingPostId == post.id) "Saving..." else if (reactionIds.contains(post.id)) "Liked" else "Like"
-                                    )
+                                    if (!author?.avatarUrl.isNullOrBlank()) {
+                                        AsyncImage(
+                                            model = author?.avatarUrl,
+                                            contentDescription = "Member photo",
+                                            modifier = Modifier.clip(RoundedCornerShape(50)),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    } else {
+                                        Image(
+                                            painter = painterResource(id = R.drawable.camillian_logo),
+                                            contentDescription = "Camillian logo",
+                                            modifier = Modifier.padding(7.dp)
+                                        )
+                                    }
                                 }
-                                Text(reactionCounts[post.id]?.toString() ?: "0")
-                                Spacer(Modifier.width(8.dp))
-                                TextButton(onClick = { commentPostId = post.id }) { Text(localized("Comments", language)) }
+                                Spacer(Modifier.width(10.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        author?.fullName?.takeIf { it.isNotBlank() } ?: author?.email ?: "Member",
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                    )
+                                    if (!post.province.isNullOrBlank()) {
+                                        Text("Province: " + post.province, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
+                                    }
+                                }
+                                Text(post.createdAt ?: "", style = MaterialTheme.typography.labelSmall)
+                            }
+
+                            if (!post.mediaUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = post.mediaUrl,
+                                    contentDescription = "Post media",
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+
+                            if (!post.textContent.isNullOrBlank()) {
+                                Text(post.textContent, modifier = Modifier.padding(14.dp, 12.dp, 14.dp, 4.dp))
+                            }
+
+                            Row(
+                                Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(onClick = { toggleLike(post.id) }, enabled = reactingPostId == null) {
+                                    Text(if (reactionIds.contains(post.id)) "♥  " + (reactionCounts[post.id] ?: 0) else "♡  " + (reactionCounts[post.id] ?: 0), fontSize = 16.sp)
+                                }
+                                TextButton(onClick = { commentPostId = post.id }) {
+                                    Text("Comment")
+                                }
+                                Spacer(Modifier.weight(1f))
                                 if (post.authorId == profile.id) {
-                                    TextButton(onClick = { deletePost(post.id) }) { Text(localized("Delete", language)) }
+                                    TextButton(onClick = { deletePost(post.id) }) { Text("Delete") }
                                 }
                             }
                         }
