@@ -211,6 +211,7 @@ private fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var rememberMe by remember { mutableStateOf(false) }
+    var showPassword by remember { mutableStateOf(false) }
     var showRegister by remember { mutableStateOf(false) }
     var showRecovery by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf(initialMessage) }
@@ -221,103 +222,120 @@ private fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .imePadding()
+            .background(Color(0xFF373737))
     ) {
         val compact = maxHeight < 760.dp
 
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = if (compact) 16.dp else 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+                .padding(horizontal = if (compact) 18.dp else 34.dp, vertical = if (compact) 18.dp else 28.dp)
+                .border(2.dp, Color.White, RoundedCornerShape(38.dp))
+                .padding(if (compact) 10.dp else 16.dp)
         ) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.TopEnd
-            ) {
-                LanguageSelector(selected = language, onSelected = onLanguageChange)
-            }
-
-            Spacer(Modifier.height(if (compact) 8.dp else 20.dp))
-
-            Image(
-                painter = painterResource(id = R.drawable.camillian_logo),
-                contentDescription = "Camillian logo",
-                modifier = Modifier.size(if (compact) 78.dp else 94.dp),
-                contentScale = ContentScale.Fit
-            )
-
-            Spacer(Modifier.height(if (compact) 8.dp else 14.dp))
-
             Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 520.dp),
-                shape = RoundedCornerShape(2.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFD9D9D9).copy(alpha = 0.96f)
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                modifier = Modifier.fillMaxSize(),
+                shape = RoundedCornerShape(30.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF3D3D3D)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
             ) {
                 Column(
-                    modifier = Modifier.padding(
-                        horizontal = if (compact) 22.dp else 34.dp,
-                        vertical = if (compact) 24.dp else 34.dp
-                    ),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = if (compact) 24.dp else 54.dp, vertical = if (compact) 22.dp else 30.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(if (compact) 84.dp else 100.dp)
-                            .offset(y = if (compact) (-58).dp else (-66).dp)
-                            .background(Color(0xFFD9D9D9), RoundedCornerShape(50))
-                            .border(4.dp, Color.White, RoundedCornerShape(50)),
-                        contentAlignment = Alignment.Center
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            "♙",
-                            color = Color(0xFF222222),
-                            fontSize = if (compact) 48.sp else 56.sp,
-                            textAlign = TextAlign.Center
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(24.dp),
+                            color = Color(0xFF333333),
+                            shadowElevation = 8.dp
+                        ) {
+                            Text(
+                                "Camillian",
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        LanguageSelector(selected = language, onSelected = onLanguageChange)
                     }
 
-                    Spacer(Modifier.height(if (compact) (-42).dp else (-48).dp))
+                    Spacer(Modifier.height(if (compact) 22.dp else 34.dp))
+
+                    Surface(
+                        modifier = Modifier.size(if (compact) 112.dp else 138.dp),
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFF383838),
+                        shadowElevation = 18.dp
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Image(
+                                painter = painterResource(id = R.drawable.camillian_logo),
+                                contentDescription = "Camillian logo",
+                                modifier = Modifier
+                                    .size(if (compact) 94.dp else 116.dp)
+                                    .border(2.dp, Color.White, RoundedCornerShape(50)),
+                                contentScale = ContentScale.Fit
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(if (compact) 22.dp else 34.dp))
 
                     Text(
-                        "LOGIN",
-                        style = MaterialTheme.typography.headlineLarge.copy(
-                            fontWeight = FontWeight.ExtraBold,
-                            letterSpacing = 1.5.sp
-                        ),
-                        color = Color(0xFF171516)
+                        "Welcome",
+                        color = Color.White,
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
-                        "Welcome to Camillian Community",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = Color(0xFF555154),
+                        "Sign in to Camillian Community",
+                        color = Color(0xFFD0D0D0),
                         textAlign = TextAlign.Center
                     )
 
-                    Spacer(Modifier.height(if (compact) 22.dp else 30.dp))
+                    Spacer(Modifier.height(if (compact) 24.dp else 32.dp))
 
+                    Text(
+                        localized("Email", language),
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color(0xFFE8E8E8),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(7.dp))
                     LoginField(
                         value = email,
                         onValueChange = { email = it },
                         placeholder = localized("Email", language),
-                        password = false
+                        password = false,
+                        showPassword = false,
+                        onTogglePassword = {}
                     )
 
-                    Spacer(Modifier.height(14.dp))
+                    Spacer(Modifier.height(18.dp))
 
+                    Text(
+                        localized("Password", language),
+                        modifier = Modifier.fillMaxWidth(),
+                        color = Color(0xFFE8E8E8),
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(Modifier.height(7.dp))
                     LoginField(
                         value = password,
                         onValueChange = { password = it },
                         placeholder = localized("Password", language),
-                        password = true
+                        password = true,
+                        showPassword = showPassword,
+                        onTogglePassword = { showPassword = !showPassword }
                     )
 
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -331,15 +349,12 @@ private fun LoginScreen(
                                 checked = rememberMe,
                                 onCheckedChange = { rememberMe = it },
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = Color(0xFF252122),
-                                    uncheckedColor = Color(0xFF444044)
+                                    checkedColor = Color.White,
+                                    checkmarkColor = Color(0xFF333333),
+                                    uncheckedColor = Color(0xFFBDBDBD)
                                 )
                             )
-                            Text(
-                                "Remember",
-                                color = Color(0xFF333033),
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                            Text("Remember me", color = Color(0xFFE0E0E0))
                         }
 
                         TextButton(
@@ -348,13 +363,13 @@ private fun LoginScreen(
                         ) {
                             Text(
                                 localized("Forgot password?", language),
-                                color = Color(0xFF333033),
-                                style = MaterialTheme.typography.bodyMedium
+                                color = Color.White,
+                                fontWeight = FontWeight.SemiBold
                             )
                         }
                     }
 
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(18.dp))
 
                     Button(
                         onClick = {
@@ -402,51 +417,52 @@ private fun LoginScreen(
                         enabled = !loading && email.isNotBlank() && password.isNotBlank(),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(54.dp),
-                        shape = RoundedCornerShape(28.dp),
+                            .height(58.dp),
+                        shape = RoundedCornerShape(30.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF252122),
-                            contentColor = Color.White
+                            containerColor = Color(0xFF303030),
+                            contentColor = Color.White,
+                            disabledContainerColor = Color(0xFF303030),
+                            disabledContentColor = Color(0xFF909090)
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 8.dp,
+                            pressedElevation = 2.dp
                         )
                     ) {
                         Text(
-                            if (loading) localized("Checking membership...", language) else "LOGIN",
+                            if (loading) localized("Checking membership...", language) else "Log in",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
-                            letterSpacing = 1.sp
-                        )
-                    }
-
-                    Spacer(Modifier.height(8.dp))
-
-                    TextButton(onClick = { showRegister = true }) {
-                        Text(
-                            localized("Register", language),
-                            color = Color(0xFF0057B8),
-                            fontWeight = FontWeight.SemiBold
+                            fontSize = 18.sp
                         )
                     }
 
                     if (message.isNotBlank()) {
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(12.dp))
                         Text(
                             message,
-                            color = Color(0xFF9B1C1C),
+                            color = Color(0xFFFF9D9D),
                             textAlign = TextAlign.Center,
                             modifier = Modifier.fillMaxWidth()
                         )
                     }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    TextButton(
+                        onClick = { showRegister = true },
+                        contentPadding = PaddingValues(4.dp)
+                    ) {
+                        Text(
+                            "Don't have an account?  Sign up",
+                            color = Color.White,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
                 }
             }
-
-            Spacer(Modifier.height(18.dp))
-            Text(
-                "Camillian Community",
-                color = Color.White,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = FontWeight.SemiBold
-            )
-            Spacer(Modifier.height(8.dp))
         }
 
         if (showRegister) {
@@ -470,7 +486,9 @@ private fun LoginField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    password: Boolean
+    password: Boolean,
+    showPassword: Boolean,
+    onTogglePassword: () -> Unit
 ) {
     OutlinedTextField(
         value = value,
@@ -480,31 +498,36 @@ private fun LoginField(
             .height(58.dp),
         singleLine = true,
         placeholder = {
-            Text(
-                placeholder,
-                color = Color(0xFFEDEDED)
-            )
+            Text(placeholder, color = Color(0xFFBDBDBD))
         },
-        leadingIcon = {
-            Text(
-                if (password) "▣" else "@",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
+        trailingIcon = if (password) {
+            {
+                TextButton(
+                    onClick = onTogglePassword,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        if (showPassword) "Hide" else "Show",
+                        color = Color.White,
+                        fontSize = 12.sp
+                    )
+                }
+            }
+        } else null,
+        visualTransformation = if (password && !showPassword) {
+            PasswordVisualTransformation()
+        } else {
+            androidx.compose.ui.text.input.VisualTransformation.None
         },
-        visualTransformation = if (password) PasswordVisualTransformation() else androidx.compose.ui.text.input.VisualTransformation.None,
         shape = RoundedCornerShape(30.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = Color(0xFF252122),
-            unfocusedContainerColor = Color(0xFF252122),
+            focusedContainerColor = Color(0xFF292929),
+            unfocusedContainerColor = Color(0xFF292929),
             focusedTextColor = Color.White,
             unfocusedTextColor = Color.White,
             cursorColor = Color.White,
-            focusedBorderColor = Color.Transparent,
-            unfocusedBorderColor = Color.Transparent,
-            focusedLeadingIconColor = Color.White,
-            unfocusedLeadingIconColor = Color.White
+            focusedBorderColor = Color(0xFF666666),
+            unfocusedBorderColor = Color(0xFF292929)
         )
     )
 }
