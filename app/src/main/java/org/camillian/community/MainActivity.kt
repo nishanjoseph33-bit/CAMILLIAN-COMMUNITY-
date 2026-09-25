@@ -2,6 +2,8 @@ package org.camillian.community
 
 import android.os.Bundle
 import android.net.Uri
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
@@ -257,11 +259,17 @@ private fun HomeScreen(profile: MemberProfile) {
     var message by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(true) }
     var posting by remember { mutableStateOf(false) }
+    var mediaUri by remember { mutableStateOf<Uri?>(null) }
+    var mediaKind by remember { mutableStateOf<String?>(null) }
     var reactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var reactionCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var reactingPostId by remember { mutableStateOf<String?>(null) }
     var commentPostId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        mediaUri = uri
+        mediaKind = if (uri?.toString()?.contains("video", ignoreCase = true) == true) "video" else "photo"
+    }
 
     fun loadFeed() {
         scope.launch {
@@ -338,22 +346,19 @@ private fun HomeScreen(profile: MemberProfile) {
 
     fun createPost() {
         val text = composer.trim()
-        if (text.isEmpty()) return
+        if (text.isEmpty() && mediaUri == null) return
         scope.launch {
             posting = true
             try {
-                Supabase.client.from("posts").insert(buildJsonObject {
-                    put("author_id", profile.id)
-                    put("kind", "text")
-                    put("text_content", text)
-                })
-                composer = ""
-                loadFeed()
+                var mediaUrl: String? = null
+                if (mediaUri != null) {
+                    val uri = mediaUri!!
+                    val bytes = android.content.ContextWrapper(null)
+                    val input = androidx.compose.ui.platform.LocalContext.current.contentResolver.openInputStream(uri)
+                }
             } catch (e: Exception) {
                 message = e.message ?: "Could not publish your post."
-            } finally {
-                posting = false
-            }
+            } finally { posting = false }
         }
     }
 
