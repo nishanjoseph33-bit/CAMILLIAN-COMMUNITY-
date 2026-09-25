@@ -236,7 +236,7 @@ private fun LoginScreen(
         modifier = Modifier
             .fillMaxSize()
             .imePadding()
-            .background(Color(0xFF373737))
+            .background(Color(0xFF202124))
     ) {
         val compact = maxHeight < 760.dp
 
@@ -250,8 +250,8 @@ private fun LoginScreen(
             Card(
                 modifier = Modifier.fillMaxSize(),
                 shape = RoundedCornerShape(30.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF3D3D3D)),
-                elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF2D2E32)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 18.dp)
             ) {
                 Column(
                     modifier = Modifier
@@ -303,14 +303,20 @@ private fun LoginScreen(
                     Spacer(Modifier.height(if (compact) 22.dp else 34.dp))
 
                     Text(
-                        "Welcome",
+                        localized("Welcome", language),
                         color = Color.White,
                         style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
                     )
                     Text(
-                        "Sign in to Camillian Community",
+                        localized("Sign in to Camillian Community", language),
                         color = Color(0xFFD0D0D0),
                         textAlign = TextAlign.Center
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    Surface(
+                        modifier = Modifier.width(54.dp).height(3.dp),
+                        shape = RoundedCornerShape(50),
+                        color = Color(0xFFC8102E)
                     )
 
                     Spacer(Modifier.height(if (compact) 24.dp else 32.dp))
@@ -368,7 +374,7 @@ private fun LoginScreen(
                                     uncheckedColor = Color(0xFFBDBDBD)
                                 )
                             )
-                            Text("Remember me", color = Color(0xFFE0E0E0))
+                            Text(localized("Remember me", language), color = Color(0xFFE0E0E0))
                         }
 
                         TextButton(
@@ -590,7 +596,7 @@ private fun RegisterDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
                 }
             }) { Text(if (busy) "Registering..." else "Register") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(localized("Cancel", language)) } }
     )
 }
 
@@ -617,7 +623,7 @@ private fun RecoveryDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
                 }
             }) { Text(if (busy) "Sending..." else "Send reset email") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        dismissButton = { TextButton(onClick = onDismiss) { Text(localized("Cancel", language)) } }
     )
 }
 
@@ -841,7 +847,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(localized("Share with the community", language), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { showComposer = false }) { Text("Close") }
+                        TextButton(onClick = { showComposer = false }) { Text(localized("Close", language)) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text(localized("Photo", language)) }
@@ -1112,7 +1118,7 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, onDismiss: ()
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close") } }
+        confirmButton = { TextButton(onClick = onDismiss) { Text(localized("Close", language)) } }
     )
 }
 
@@ -1133,7 +1139,16 @@ private fun localized(key: String, language: String): String {
         "Video" to mapOf("Italiano" to "Video", "Español" to "Vídeo", "Português" to "Vídeo", "Français" to "Vidéo", "Deutsch" to "Video", "Tiếng Việt" to "Video", "Filipino" to "Video"),
         "Publish" to mapOf("Italiano" to "Pubblica", "Español" to "Publicar", "Português" to "Publicar", "Français" to "Publier", "Deutsch" to "Veröffentlichen", "Tiếng Việt" to "Đăng", "Filipino" to "I-publish"),
         "Comment" to mapOf("Italiano" to "Commenta", "Español" to "Comentar", "Português" to "Comentar", "Français" to "Commenter", "Deutsch" to "Kommentieren", "Tiếng Việt" to "Bình luận", "Filipino" to "Magkomento"),
-        "Delete" to mapOf("Italiano" to "Elimina", "Español" to "Eliminar", "Português" to "Excluir", "Français" to "Supprimer", "Deutsch" to "Löschen", "Tiếng Việt" to "Xóa", "Filipino" to "Tanggalin")
+        "Delete" to mapOf("Italiano" to "Elimina", "Español" to "Eliminar", "Português" to "Excluir", "Français" to "Supprimer", "Deutsch" to "Löschen", "Tiếng Việt" to "Xóa", "Filipino" to "Tanggalin"),
+        "Welcome" to mapOf("Italiano" to "Benvenuto", "Español" to "Bienvenido", "Português" to "Bem-vindo", "Français" to "Bienvenue", "Deutsch" to "Willkommen", "Tiếng Việt" to "Chào mừng", "Filipino" to "Maligayang pagdating"),
+        "Sign in to Camillian Community" to mapOf("Italiano" to "Accedi alla Comunità Camilliana", "Español" to "Inicia sesión en la Comunidad Camilliana", "Português" to "Entre na Comunidade Camilliana", "Français" to "Connectez-vous à la Communauté Camillienne", "Deutsch" to "Bei der Camillianischen Gemeinschaft anmelden", "Tiếng Việt" to "Đăng nhập Cộng đoàn Camillian", "Filipino" to "Mag-login sa Camillian Community"),
+        "Remember me" to mapOf("Italiano" to "Ricordami", "Español" to "Recuérdame", "Português" to "Lembrar-me", "Français" to "Se souvenir de moi", "Deutsch" to "Angemeldet bleiben", "Tiếng Việt" to "Ghi nhớ tôi", "Filipino" to "Tandaan ako"),
+        "Reset password" to mapOf("Italiano" to "Reimposta password", "Español" to "Restablecer contraseña", "Português" to "Redefinir palavra-passe", "Français" to "Réinitialiser le mot de passe", "Deutsch" to "Passwort zurücksetzen", "Tiếng Việt" to "Đặt lại mật khẩu", "Filipino" to "I-reset ang password"),
+        "New password" to mapOf("Italiano" to "Nuova password", "Español" to "Nueva contraseña", "Português" to "Nova palavra-passe", "Français" to "Nouveau mot de passe", "Deutsch" to "Neues Passwort", "Tiếng Việt" to "Mật khẩu mới", "Filipino" to "Bagong password"),
+        "Confirm password" to mapOf("Italiano" to "Conferma password", "Español" to "Confirmar contraseña", "Português" to "Confirmar palavra-passe", "Français" to "Confirmer le mot de passe", "Deutsch" to "Passwort bestätigen", "Tiếng Việt" to "Xác nhận mật khẩu", "Filipino" to "Kumpirmahin ang password"),
+        "Send reset email" to mapOf("Italiano" to "Invia email di reimpostazione", "Español" to "Enviar correo de restablecimiento", "Português" to "Enviar email de redefinição", "Français" to "Envoyer l’e-mail de réinitialisation", "Deutsch" to "E-Mail zum Zurücksetzen senden", "Tiếng Việt" to "Gửi email đặt lại", "Filipino" to "Ipadala ang reset email"),
+        "Cancel" to mapOf("Italiano" to "Annulla", "Español" to "Cancelar", "Português" to "Cancelar", "Français" to "Annuler", "Deutsch" to "Abbrechen", "Tiếng Việt" to "Hủy", "Filipino" to "Kanselahin"),
+        "Close" to mapOf("Italiano" to "Chiudi", "Español" to "Cerrar", "Português" to "Fechar", "Français" to "Fermer", "Deutsch" to "Schließen", "Tiếng Việt" to "Đóng", "Filipino" to "Isara")
     )
     return if (language == "English") key else data[key]?.get(language) ?: key
 }
