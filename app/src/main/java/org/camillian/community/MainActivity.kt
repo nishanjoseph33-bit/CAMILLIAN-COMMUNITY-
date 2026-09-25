@@ -1583,6 +1583,7 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, language: Str
     var sending by remember { mutableStateOf(false) }
     var translatedComments by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var translatingCommentId by remember { mutableStateOf<String?>(null) }
+    var commentAuthors by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
     val scope = rememberCoroutineScope()
 
     fun load() {
@@ -1592,6 +1593,14 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, language: Str
                     filter { filter("post_id", FilterOperator.EQ, postId) }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                 }.decodeList<PostComment>()
+
+                val authorIds = comments.map { it.authorId }.toSet()
+                if (authorIds.isNotEmpty()) {
+                    val profiles = Supabase.client.from("profiles").select()
+                        .decodeList<MemberProfile>()
+                        .filter { it.id in authorIds }
+                    commentAuthors = profiles.associateBy { it.id }
+                }
             } catch (_: Exception) {}
         }
     }
@@ -1629,7 +1638,13 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, language: Str
                     items(comments, key = { it.id }) { comment ->
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(10.dp)) {
-                                Text("Member " + comment.authorId.take(8))
+                                val author = commentAuthors[comment.authorId]
+                                Text(
+                                    author?.fullName?.takeIf { it.isNotBlank() }
+                                        ?: author?.religiousName?.takeIf { it.isNotBlank() }
+                                        ?: "Member",
+                                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
+                                )
                                 Text(comment.textContent)
                                 translatedComments[comment.id]?.let { translated ->
                                     Spacer(Modifier.height(4.dp))
