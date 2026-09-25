@@ -1101,6 +1101,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
     var loading by remember { mutableStateOf(true) }
     var message by remember { mutableStateOf("") }
     var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
+    var showNotifications by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
@@ -1150,8 +1151,43 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                 Text("Find Friends", style = MaterialTheme.typography.headlineMedium)
                 Text("Find and connect with Camillian members.")
             }
-            if (notifications.any { !it.isRead }) {
-                Text("●", color = MaterialTheme.colorScheme.primary, fontSize = 22.sp)
+            TextButton(onClick = { showNotifications = !showNotifications }) {
+                Text(
+                    if (notifications.any { !it.isRead }) "Notifications •" else "Notifications",
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
+
+        if (showNotifications) {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    Text("Notifications", style = MaterialTheme.typography.titleLarge)
+                    Spacer(Modifier.height(6.dp))
+                    if (notifications.isEmpty()) {
+                        Text("No notifications yet.")
+                    } else {
+                        notifications.take(10).forEach { notification ->
+                            Text(notification.title, fontWeight = FontWeight.SemiBold)
+                            if (!notification.body.isNullOrBlank()) Text(notification.body!!)
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        TextButton(onClick = {
+                            scope.launch {
+                                try {
+                                    Supabase.client.from("notifications").update({
+                                        set("is_read", true)
+                                    }) {
+                                        filter { filter("user_id", FilterOperator.EQ, profile.id) }
+                                    }
+                                    notifications = notifications.map { it.copy(isRead = true) }
+                                } catch (e: Exception) {
+                                    message = e.message ?: "Could not mark notifications as read."
+                                }
+                            }
+                        }) { Text("Mark all as read") }
+                    }
+                }
             }
         }
 
