@@ -2175,6 +2175,7 @@ private fun MessagesScreen(
     onInitialConversationConsumed: () -> Unit = {}
 ) {
     var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
+    var conversationPeople by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
     var selected by remember { mutableStateOf<Conversation?>(initialConversation) }
     var loading by remember { mutableStateOf(true) }
 
@@ -2194,6 +2195,25 @@ private fun MessagesScreen(
             if (ids.isNotEmpty()) {
                 conversations = Supabase.client.from("conversations").select().decodeList<Conversation>()
                     .filter { it.id in ids }
+
+                val membersByConversation = memberships.groupBy { it.conversationId }
+                val otherIds = memberships
+                    .filter { it.userId != profile.id }
+                    .map { it.userId }
+                    .toSet()
+
+                if (otherIds.isNotEmpty()) {
+                    val people = Supabase.client.from("profiles").select()
+                        .decodeList<MemberProfile>()
+                        .filter { it.id in otherIds }
+                        .associateBy { it.id }
+
+                    conversationPeople = membersByConversation.mapValues { (_, members) ->
+                        members.firstOrNull { it.userId != profile.id }?.userId?.let { people[it] }
+                    }.mapNotNull { (conversationId, person) ->
+                        person?.let { conversationId to it }
+                    }.toMap()
+                }
             }
         } catch (_: Exception) {
         } finally {
@@ -2219,9 +2239,44 @@ private fun MessagesScreen(
                         onClick = { selected = conversation },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                            Text(conversation.title ?: localized("Community conversation", language))
-                            Text(if (conversation.isGroup) localized("Group", language) else localized("Private conversation", language))
+                        val person = conversationPeople[conversation.id]
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            if (!person?.avatarUrl.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = person?.avatarUrl,
+                                    contentDescription = person?.fullName ?: "Profile picture",
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(50)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Surface(
+                                    modifier = Modifier.size(56.dp),
+                                    shape = RoundedCornerShape(50),
+                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Filled.Person,
+                                            contentDescription = "Profile picture",
+                                            modifier = Modifier.size(32.dp)
+                                        )
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    person?.fullName?.takeIf { it.isNotBlank() }
+                                        ?: person?.religiousName?.takeIf { it.isNotBlank() }
+                                        ?: if (conversation.isGroup) localized("Community conversation", language) else localized("Private conversation", language),
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
                         }
                     }
                 }
