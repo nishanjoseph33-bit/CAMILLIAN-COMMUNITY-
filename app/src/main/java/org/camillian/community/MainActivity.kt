@@ -361,7 +361,6 @@ private fun AdminDashboard(profile: MemberProfile) {
         }
     }
 
-
     fun changeStatus(member: MemberProfile, newStatus: String) {
         scope.launch {
             actionMemberId = member.id
@@ -371,11 +370,7 @@ private fun AdminDashboard(profile: MemberProfile) {
                     put("target_profile_id", member.id)
                     put("new_status", newStatus)
                 }
-
-                Supabase.client.postgrest.rpc(
-                    "admin_set_member_status",
-                    parameters
-                )
+                Supabase.client.postgrest.rpc("admin_set_member_status", parameters)
                 message = "Member status changed to $newStatus."
                 loadMembers()
             } catch (e: Exception) {
@@ -389,10 +384,29 @@ private fun AdminDashboard(profile: MemberProfile) {
     LaunchedEffect(status) { loadMembers() }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Admin Dashboard", style = MaterialTheme.typography.headlineMedium)
-        Text("Administrator: ${profile.fullName ?: profile.email ?: "Admin"}")
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Admin Dashboard", style = MaterialTheme.typography.headlineMedium)
+                Text("Administrator: ${profile.fullName ?: profile.email ?: "Admin"}")
+            }
+            TextButton(
+                onClick = { loadMembers() },
+                enabled = !loading
+            ) {
+                Text(if (loading) "Loading..." else "Refresh")
+            }
+        }
+
         Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             listOf("pending", "approved", "rejected", "suspended").forEach { value ->
                 FilterChip(
                     selected = status == value,
@@ -401,42 +415,95 @@ private fun AdminDashboard(profile: MemberProfile) {
                 )
             }
         }
+
         Spacer(Modifier.height(16.dp))
-        if (loading) CircularProgressIndicator()
-        if (message.isNotBlank()) Text(message)
-        members.forEach { member ->
-            Card(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                Column(Modifier.padding(14.dp)) {
-                    Text(member.fullName ?: "Unnamed member", style = MaterialTheme.typography.titleMedium)
-                    Text(member.email ?: "")
-                    Text("Role: ${member.memberRole}")
-                    Text("Status: ${member.memberStatus}")
-                    Spacer(Modifier.height(10.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (member.memberStatus != "approved") {
-                            Button(
-                                onClick = { changeStatus(member, "approved") },
-                                enabled = actionMemberId == null
-                            ) { Text("Approve") }
-                        }
-                        if (member.memberStatus != "rejected") {
-                            OutlinedButton(
-                                onClick = { changeStatus(member, "rejected") },
-                                enabled = actionMemberId == null
-                            ) { Text("Reject") }
-                        }
-                        if (member.memberStatus != "suspended") {
-                            OutlinedButton(
-                                onClick = { changeStatus(member, "suspended") },
-                                enabled = actionMemberId == null
-                            ) { Text("Suspend") }
+
+        if (message.isNotBlank()) {
+            Text(message, color = MaterialTheme.colorScheme.primary)
+            Spacer(Modifier.height(8.dp))
+        }
+
+        if (loading && members.isEmpty()) {
+            Box(
+                Modifier.fillMaxWidth().padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(members, key = { it.id }) { member ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(
+                            member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(member.email ?: "No email")
+                        Spacer(Modifier.height(4.dp))
+                        Text("Role: ${member.memberRole}")
+                        Text("Status: ${member.memberStatus.replaceFirstChar { it.uppercase() }}")
+                        Spacer(Modifier.height(12.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            if (member.memberStatus == "pending") {
+                                Button(
+                                    onClick = { changeStatus(member, "approved") },
+                                    enabled = actionMemberId == null
+                                ) {
+                                    Text(
+                                        if (actionMemberId == member.id) "Approving..."
+                                        else "Approve"
+                                    )
+                                }
+                            }
+
+                            if (member.memberStatus != "rejected") {
+                                OutlinedButton(
+                                    onClick = { changeStatus(member, "rejected") },
+                                    enabled = actionMemberId == null
+                                ) {
+                                    Text("Reject")
+                                }
+                            }
+
+                            if (member.memberStatus != "suspended") {
+                                OutlinedButton(
+                                    onClick = { changeStatus(member, "suspended") },
+                                    enabled = actionMemberId == null
+                                ) {
+                                    Text("Suspend")
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-        if (!loading && members.isEmpty() && message.isBlank()) {
-            Text("No members in this status.")
+
+            if (!loading && members.isEmpty()) {
+                item {
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(20.dp)) {
+                            Text(
+                                "No members in ${status.replaceFirstChar { it.uppercase() }}.",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            if (status == "pending") {
+                                Spacer(Modifier.height(6.dp))
+                                Text("If you just added a member in Supabase, tap Refresh.")
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
