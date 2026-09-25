@@ -191,11 +191,50 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
     var message by remember { mutableStateOf("") }
     var inviteModeActive by remember { mutableStateOf(inviteMode) }
     var recoveryModeActive by remember { mutableStateOf(recoveryMode) }
+    var sessionLoading by remember { mutableStateOf(!recoveryMode && !inviteMode) }
     val appScope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        if (!recoveryMode && !inviteMode) {
+            try {
+                val user = Supabase.client.auth.currentUserOrNull()
+                if (user != null) {
+                    val member = Supabase.client.from("profiles").select {
+                        filter { filter("id", FilterOperator.EQ, user.id) }
+                    }.decodeSingle<MemberProfile>()
+
+                    when (member.memberStatus) {
+                        "approved" -> profile = member
+                        "pending" -> {
+                            Supabase.client.auth.signOut()
+                            message = "Membership is awaiting administrator approval."
+                        }
+                        "rejected" -> {
+                            Supabase.client.auth.signOut()
+                            message = "Membership application was not approved."
+                        }
+                        "suspended" -> {
+                            Supabase.client.auth.signOut()
+                            message = "Account is suspended. Please contact an administrator."
+                        }
+                        else -> {
+                            Supabase.client.auth.signOut()
+                            message = "Membership status could not be verified."
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                message = e.message ?: "Could not restore your session."
+            } finally {
+                sessionLoading = false
+            }
+        }
+    }
 
     val destination = when {
         recoveryModeActive -> "recovery"
         inviteModeActive -> "invite"
+        sessionLoading -> "loading"
         profile == null -> "login"
         profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin" -> "admin"
         else -> "home"
@@ -235,6 +274,12 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
         ) { screen ->
             Box(Modifier.fillMaxSize()) {
                 when (screen) {
+                    "loading" -> Box(
+                        Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
                     "recovery" -> RecoveryPasswordScreen(
                         language = language,
                         onDone = {
@@ -485,7 +530,6 @@ private fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var rememberMe by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
     var showRegister by remember { mutableStateOf(false) }
     var showRecovery by remember { mutableStateOf(false) }
@@ -620,24 +664,8 @@ private fun LoginScreen(
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
+                        horizontalArrangement = Arrangement.End
                     ) {
-                        Row(
-                            modifier = Modifier.weight(1f),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Checkbox(
-                                checked = rememberMe,
-                                onCheckedChange = { rememberMe = it },
-                                colors = CheckboxDefaults.colors(
-                                    checkedColor = Color.White,
-                                    checkmarkColor = Color(0xFF333333),
-                                    uncheckedColor = Color(0xFFBDBDBD)
-                                )
-                            )
-                            Text(localized("Remember me", language), color = Color(0xFFE0E0E0))
-                        }
-
                         TextButton(
                             onClick = { showRecovery = true },
                             contentPadding = PaddingValues(4.dp)
