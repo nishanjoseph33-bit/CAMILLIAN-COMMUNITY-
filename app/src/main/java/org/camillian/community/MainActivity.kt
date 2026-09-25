@@ -470,7 +470,7 @@ private fun CommunityShell(profile: MemberProfile, onLogout: () -> Unit) {
     Scaffold(
         bottomBar = {
             NavigationBar {
-                listOf("Home", "Events", "Communities", "Profile").forEach { item ->
+                listOf("Home", "Events", "Communities", "Messages", "Profile").forEach { item ->
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { tab = item },
@@ -486,6 +486,7 @@ private fun CommunityShell(profile: MemberProfile, onLogout: () -> Unit) {
                 "Home" -> HomeScreen(profile)
                 "Events" -> EventsScreen()
                 "Communities" -> CommunitiesScreen()
+                "Messages" -> MessagesScreen(profile)
                 "Profile" -> ProfileScreen(profile, onLogout)
             }
         }
@@ -584,6 +585,156 @@ private fun CommunitiesScreen() {
                         if (!org.description.isNullOrBlank()) Text(org.description!!)
                     }
                 }
+            }
+        }
+    }
+}
+
+
+@Serializable
+private data class Conversation(
+    val id: String,
+    val title: String? = null,
+    @SerialName("is_group") val isGroup: Boolean = false
+)
+
+@Serializable
+private data class ConversationMember(
+    val id: String,
+    @SerialName("conversation_id") val conversationId: String,
+    @SerialName("user_id") val userId: String
+)
+
+@Serializable
+private data class ChatMessage(
+    val id: String,
+    @SerialName("conversation_id") val conversationId: String,
+    @SerialName("sender_id") val senderId: String,
+    @SerialName("message_text") val messageText: String,
+    @SerialName("created_at") val createdAt: String? = null
+)
+
+@Composable
+private fun MessagesScreen(profile: MemberProfile) {
+    var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
+    var selected by remember { mutableStateOf<Conversation?>(null) }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val memberships = Supabase.client.from("conversation_members").select {
+                filter { filter("user_id", FilterOperator.EQ, profile.id) }
+            }.decodeList<ConversationMember>()
+            val ids = memberships.map { it.conversationId }.toSet()
+            if (ids.isNotEmpty()) {
+                conversations = Supabase.client.from("conversations").select().decodeList<Conversation>()
+                    .filter { it.id in ids }
+            }
+        } catch (_: Exception) {
+        } finally {
+            loading = false
+        }
+    }
+
+    if (selected != null) {
+        ChatScreen(profile, selected!!, onBack = { selected = null })
+        return
+    }
+
+    Column(Modifier.fillMaxSize().padding(20.dp)) {
+        Text("Messages", style = MaterialTheme.typography.headlineMedium)
+        Text("Private and community conversations.")
+        Spacer(Modifier.height(16.dp))
+        if (loading) CircularProgressIndicator()
+        else if (conversations.isEmpty()) Text("No conversations yet.")
+        else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(conversations, key = { it.id }) { conversation ->
+                Card(Modifier.fillMaxWidth()) {
+                    TextButton(
+                        onClick = { selected = conversation },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.fillMaxWidth().padding(8.dp)) {
+                            Text(conversation.title ?: "Community conversation")
+                            Text(if (conversation.isGroup) "Group" else "Private conversation")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChatScreen(profile: MemberProfile, conversation: Conversation, onBack: () -> Unit) {
+    var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
+    var composer by remember { mutableStateOf("") }
+    var sending by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun load() {
+        scope.launch {
+            try {
+                messages = Supabase.client.from("messages").select {
+                    filter { filter("conversation_id", FilterOperator.EQ, conversation.id) }
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+                }.decodeList<ChatMessage>()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    fun send() {
+        val text = composer.trim()
+        if (text.isEmpty()) return
+        scope.launch {
+            sending = true
+            try {
+                Supabase.client.from("messages").insert(buildJsonObject {
+                    put("conversation_id", conversation.id)
+                    put("sender_id", profile.id)
+                    put("message_text", text)
+                })
+                composer = ""
+                load()
+            } catch (_: Exception) {
+            } finally {
+                sending = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) { load() }
+
+    Column(Modifier.fillMaxSize().padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onBack) { Text("Back") }
+            Text(conversation.title ?: "Conversation", style = MaterialTheme.typography.titleLarge)
+        }
+        LazyColumn(
+            Modifier.weight(1f).fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(messages, key = { it.id }) { item ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text(if (item.senderId == profile.id) "You" else "Member")
+                        Text(item.messageText)
+                    }
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = composer,
+                onValueChange = { composer = it },
+                modifier = Modifier.weight(1f),
+                placeholder = { Text("Message...") },
+                maxLines = 3
+            )
+            Spacer(Modifier.width(8.dp))
+            Button(onClick = { send() }, enabled = !sending && composer.isNotBlank()) {
+                Text(if (sending) "..." else "Send")
             }
         }
     }
