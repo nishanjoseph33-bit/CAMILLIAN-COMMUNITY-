@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import io.github.jan.supabase.auth.providers.Email
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.filter.eq
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -171,13 +173,10 @@ private fun AdminDashboard(profile: MemberProfile) {
             actionMemberId = member.id
             message = ""
             try {
-                Supabase.client.postgrest.rpc(
-                    "admin_set_member_status",
-                    mapOf(
-                        "target_profile_id" to member.id,
-                        "new_status" to newStatus
-                    )
-                )
+                Supabase.client.postgrest.rpc("admin_set_member_status") {
+                    parameter("target_profile_id", member.id)
+                    parameter("new_status", newStatus)
+                }
                 message = "Member status changed to $newStatus."
                 loadMembers()
             } catch (e: Exception) {
