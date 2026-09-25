@@ -68,6 +68,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 private val translationClient = HttpClient(Android)
@@ -1146,6 +1149,8 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, language: Str
     var comments by remember { mutableStateOf<List<PostComment>>(emptyList()) }
     var composer by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
+    var translatedComments by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var translatingCommentId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun load() {
@@ -1194,6 +1199,40 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, language: Str
                             Column(Modifier.padding(10.dp)) {
                                 Text("Member " + comment.authorId.take(8))
                                 Text(comment.textContent)
+                                translatedComments[comment.id]?.let { translated ->
+                                    Spacer(Modifier.height(4.dp))
+                                    Text(
+                                        localized("Translation", language),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.secondary
+                                    )
+                                    Text(translated)
+                                }
+                                TextButton(
+                                    onClick = {
+                                        if (translatedComments.containsKey(comment.id)) {
+                                            translatedComments = translatedComments - comment.id
+                                        } else {
+                                            scope.launch {
+                                                translatingCommentId = comment.id
+                                                try {
+                                                    val translated = translateText(comment.textContent, language)
+                                                    translatedComments = translatedComments + (comment.id to translated)
+                                                } catch (_: Exception) {
+                                                } finally {
+                                                    translatingCommentId = null
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = translatingCommentId == null
+                                ) {
+                                    Text(
+                                        if (translatingCommentId == comment.id) localized("Translating...", language)
+                                        else if (translatedComments.containsKey(comment.id)) localized("Hide translation", language)
+                                        else localized("Translate", language)
+                                    )
+                                }
                             }
                         }
                     }
