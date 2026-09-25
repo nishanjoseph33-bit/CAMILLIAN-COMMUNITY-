@@ -578,9 +578,22 @@ private fun CommentsDialog(postId: String, profile: MemberProfile, onDismiss: ()
     }
 
 
+
+private fun localized(key: String, language: String): String {
+    val data = mapOf(
+        "Home" to mapOf("Italiano" to "Home", "Español" to "Inicio", "Português" to "Início", "Français" to "Accueil", "Deutsch" to "Start", "Tiếng Việt" to "Trang chủ", "Filipino" to "Home"),
+        "Events" to mapOf("Italiano" to "Eventi", "Español" to "Eventos", "Português" to "Eventos", "Français" to "Événements", "Deutsch" to "Termine", "Tiếng Việt" to "Sự kiện", "Filipino" to "Mga Kaganapan"),
+        "Communities" to mapOf("Italiano" to "Comunità", "Español" to "Comunidades", "Português" to "Comunidades", "Français" to "Communautés", "Deutsch" to "Gemeinschaften", "Tiếng Việt" to "Cộng đoàn", "Filipino" to "Mga Komunidad"),
+        "Messages" to mapOf("Italiano" to "Messaggi", "Español" to "Mensajes", "Português" to "Mensagens", "Français" to "Messages", "Deutsch" to "Nachrichten", "Tiếng Việt" to "Tin nhắn", "Filipino" to "Mga Mensahe"),
+        "Profile" to mapOf("Italiano" to "Profilo", "Español" to "Perfil", "Português" to "Perfil", "Français" to "Profil", "Deutsch" to "Profil", "Tiếng Việt" to "Hồ sơ", "Filipino" to "Profile")
+    )
+    return if (language == "English") key else data[key]?.get(language) ?: key
+}
+
 @Composable
 private fun CommunityShell(profile: MemberProfile, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("Home") }
+    var language by remember { mutableStateOf("English") }
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -589,7 +602,7 @@ private fun CommunityShell(profile: MemberProfile, onLogout: () -> Unit) {
                         selected = tab == item,
                         onClick = { tab = item },
                         icon = { Text(item.take(1)) },
-                        label = { Text(item) }
+                        label = { Text(localized(item, language)) }
                     )
                 }
             }
@@ -601,7 +614,7 @@ private fun CommunityShell(profile: MemberProfile, onLogout: () -> Unit) {
                 "Events" -> EventsScreen()
                 "Communities" -> CommunitiesScreen()
                 "Messages" -> MessagesScreen(profile)
-                "Profile" -> ProfileScreen(profile, onLogout)
+                "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = { language = it })
             }
         }
     }
@@ -855,7 +868,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, onBac
 }
 
 @Composable
-private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit) {
+private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language: String = "English", onLanguageChange: (String) -> Unit = {}) {
     var fullName by remember { mutableStateOf(profile.fullName.orEmpty()) }
     var religiousName by remember { mutableStateOf(profile.religiousName.orEmpty()) }
     var phone by remember { mutableStateOf(profile.phone.orEmpty()) }
@@ -873,7 +886,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Text("My Profile", style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(20.dp))
-        LanguageSelector()
+        LanguageSelector(selected = language, onSelected = onLanguageChange)
         LazyColumn(
             Modifier.fillMaxSize().padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
@@ -1009,20 +1022,19 @@ private fun AdminTools(profile: MemberProfile) {
 }
 
 @Composable
-private fun LanguageSelector() {
+private fun LanguageSelector(selected: String = "English", onSelected: (String) -> Unit = {}) {
     val languages = listOf(
         "English", "Italiano", "Español", "Português",
         "Français", "Deutsch", "Tiếng Việt", "Filipino"
     )
     var expanded by remember { mutableStateOf(false) }
-    var selected by remember { mutableStateOf("English") }
     Box {
         OutlinedButton(onClick = { expanded = true }) { Text("Language: " + selected) }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             languages.forEach { language ->
                 DropdownMenuItem(
                     text = { Text(language) },
-                    onClick = { selected = language; expanded = false }
+                    onClick = { onSelected(language); expanded = false }
                 )
             }
         }
