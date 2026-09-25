@@ -56,13 +56,49 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.storage.storage
 import io.github.jan.supabase.functions.functions
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.android.Android
+import io.ktor.client.request.get
+import io.ktor.client.request.parameter
+import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.put
+
+private val translationClient = HttpClient(Android)
+
+private val translationLanguageCodes = mapOf(
+    "English" to "en",
+    "Italiano" to "it",
+    "Español" to "es",
+    "Português" to "pt",
+    "Français" to "fr",
+    "Deutsch" to "de",
+    "Tiếng Việt" to "vi",
+    "Filipino" to "tl"
+)
+
+private suspend fun translateText(text: String, targetLanguage: String): String {
+    if (text.isBlank()) return text
+    val target = translationLanguageCodes[targetLanguage] ?: "en"
+    val response = translationClient.get("https://translate.googleapis.com/translate_a/single") {
+        parameter("client", "gtx")
+        parameter("sl", "auto")
+        parameter("tl", target)
+        parameter("dt", "t")
+        parameter("q", text)
+    }.bodyAsText()
+    val root = Json.parseToJsonElement(response)
+    val parts = root.jsonArray.firstOrNull()?.jsonArray ?: return text
+    return parts.joinToString("") { part ->
+        part.jsonArray.firstOrNull()?.jsonPrimitive?.contentOrNull.orEmpty()
+    }.ifBlank { text }
+}
 
 @Serializable
 private data class MemberProfile(
@@ -674,6 +710,8 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     var commentPostId by remember { mutableStateOf<String?>(null) }
     var showComposer by remember { mutableStateOf(false) }
     var postProvince by remember { mutableStateOf(profile.province.orEmpty()) }
+    var translatedPosts by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var translatingPostId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -1021,6 +1059,24 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
 
                             if (!post.textContent.isNullOrBlank()) {
                                 Text(post.textContent, modifier = Modifier.padding(14.dp, 12.dp, 14.dp, 4.dp))
+                                translatedPosts[post.id]?.let { translated ->
+                                    Spacer(Modifier.height(6.dp))
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
+                                    ) {
+                                        Column(Modifier.padding(10.dp)) {
+                                            Text(
+                                                localized("Translation", language),
+                                                style = MaterialTheme.typography.labelMedium,
+                                                color = MaterialTheme.colorScheme.secondary
+                                            )
+                                            Spacer(Modifier.height(3.dp))
+                                            Text(translated)
+                                        }
+                                    }
+                                }
                             }
 
                             Row(
@@ -1029,6 +1085,32 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                             ) {
                                 TextButton(onClick = { toggleLike(post.id) }, enabled = reactingPostId == null) {
                                     Text(if (reactionIds.contains(post.id)) "♥  " + (reactionCounts[post.id] ?: 0) else "♡  " + (reactionCounts[post.id] ?: 0), fontSize = 16.sp)
+                                }
+                                TextButton(
+                                    onClick = {
+                                        if (translatedPosts.containsKey(post.id)) {
+                                            translatedPosts = translatedPosts - post.id
+                                        } else {
+                                            scope.launch {
+                                                translatingPostId = post.id
+                                                try {
+                                                    val translated = translateText(post.textContent.orEmpty(), language)
+                                                    translatedPosts = translatedPosts + (post.id to translated)
+                                                } catch (e: Exception) {
+                                                    message = e.message ?: localized("Translation failed", language)
+                                                } finally {
+                                                    translatingPostId = null
+                                                }
+                                            }
+                                        }
+                                    },
+                                    enabled = translatingPostId == null
+                                ) {
+                                    Text(
+                                        if (translatingPostId == post.id) localized("Translating...", language)
+                                        else if (translatedPosts.containsKey(post.id)) localized("Hide translation", language)
+                                        else localized("Translate", language)
+                                    )
                                 }
                                 TextButton(onClick = { commentPostId = post.id }) {
                                     Text(localized("Comment", language))
@@ -1159,6 +1241,11 @@ private fun localized(key: String, language: String): String {
         "Confirm password" to mapOf("Italiano" to "Conferma password", "Español" to "Confirmar contraseña", "Português" to "Confirmar palavra-passe", "Français" to "Confirmer le mot de passe", "Deutsch" to "Passwort bestätigen", "Tiếng Việt" to "Xác nhận mật khẩu", "Filipino" to "Kumpirmahin ang password"),
         "Send reset email" to mapOf("Italiano" to "Invia email di reimpostazione", "Español" to "Enviar correo de restablecimiento", "Português" to "Enviar email de redefinição", "Français" to "Envoyer l’e-mail de réinitialisation", "Deutsch" to "E-Mail zum Zurücksetzen senden", "Tiếng Việt" to "Gửi email đặt lại", "Filipino" to "Ipadala ang reset email"),
         "Cancel" to mapOf("Italiano" to "Annulla", "Español" to "Cancelar", "Português" to "Cancelar", "Français" to "Annuler", "Deutsch" to "Abbrechen", "Tiếng Việt" to "Hủy", "Filipino" to "Kanselahin"),
+        "Translate" to mapOf("Italiano" to "Traduci", "Español" to "Traducir", "Português" to "Traduzir", "Français" to "Traduire", "Deutsch" to "Übersetzen", "Tiếng Việt" to "Dịch", "Filipino" to "Isalin"),
+        "Hide translation" to mapOf("Italiano" to "Nascondi traduzione", "Español" to "Ocultar traducción", "Português" to "Ocultar tradução", "Français" to "Masquer la traduction", "Deutsch" to "Übersetzung ausblenden", "Tiếng Việt" to "Ẩn bản dịch", "Filipino" to "Itago ang salin"),
+        "Translating..." to mapOf("Italiano" to "Traduzione...", "Español" to "Traduciendo...", "Português" to "Traduzindo...", "Français" to "Traduction...", "Deutsch" to "Übersetzen...", "Tiếng Việt" to "Đang dịch...", "Filipino" to "Isinasalin..."),
+        "Translation" to mapOf("Italiano" to "Traduzione", "Español" to "Traducción", "Português" to "Tradução", "Français" to "Traduction", "Deutsch" to "Übersetzung", "Tiếng Việt" to "Bản dịch", "Filipino" to "Salin"),
+        "Translation failed" to mapOf("Italiano" to "Traduzione non riuscita", "Español" to "La traducción falló", "Português" to "A tradução falhou", "Français" to "La traduction a échoué", "Deutsch" to "Übersetzung fehlgeschlagen", "Tiếng Việt" to "Dịch không thành công", "Filipino" to "Hindi nagtagumpay ang pagsasalin"),
         "Close" to mapOf("Italiano" to "Chiudi", "Español" to "Cerrar", "Português" to "Fechar", "Français" to "Fermer", "Deutsch" to "Schließen", "Tiếng Việt" to "Đóng", "Filipino" to "Isara")
     )
     return if (language == "English") key else data[key]?.get(language) ?: key
