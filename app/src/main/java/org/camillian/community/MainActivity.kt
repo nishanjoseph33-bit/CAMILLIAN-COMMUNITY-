@@ -2415,16 +2415,83 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             item {
-                if (!avatarUrl.isNullOrBlank()) {
-                    AsyncImage(model = avatarUrl, contentDescription = "Profile photo", modifier = Modifier.fillMaxWidth().height(220.dp), contentScale = ContentScale.Crop)
+                if (croppedAvatarBytes != null) {
+                    val croppedBitmap = remember(croppedAvatarBytes) {
+                        android.graphics.BitmapFactory.decodeByteArray(
+                            croppedAvatarBytes, 0, croppedAvatarBytes!!.size
+                        )
+                    }
+                    if (croppedBitmap != null) {
+                        Image(
+                            bitmap = croppedBitmap.asImageBitmap(),
+                            contentDescription = "Cropped profile photo",
+                            modifier = Modifier.fillMaxWidth().height(220.dp),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
                 } else if (avatarUri != null) {
-                    AsyncImage(model = avatarUri, contentDescription = "Selected profile photo", modifier = Modifier.fillMaxWidth().height(220.dp), contentScale = ContentScale.Crop)
+                    AsyncImage(
+                        model = avatarUri,
+                        contentDescription = "Selected profile photo",
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
+                        contentScale = ContentScale.Crop
+                    )
+                } else if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = avatarUrl,
+                        contentDescription = "Profile photo",
+                        modifier = Modifier.fillMaxWidth().height(220.dp),
+                        contentScale = ContentScale.Crop
+                    )
                 } else {
-                    Image(painter = painterResource(id = R.drawable.camillian_logo), contentDescription = "Camillian logo", modifier = Modifier.size(120.dp), contentScale = ContentScale.Fit)
+                    Image(
+                        painter = painterResource(id = R.drawable.camillian_logo),
+                        contentDescription = "Camillian logo",
+                        modifier = Modifier.size(120.dp),
+                        contentScale = ContentScale.Fit
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = { avatarPicker.launch("image/*") }, enabled = !uploadingAvatar) {
-                    Text(if (avatarUri == null) "Choose profile photo" else "Change profile photo")
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            avatarPicker.launch("image/*")
+                        },
+                        enabled = !uploadingAvatar
+                    ) {
+                        Text(if (avatarUri == null) "Choose profile photo" else "Change profile photo")
+                    }
+                    if (avatarUri != null) {
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    try {
+                                        val source = context.contentResolver.openInputStream(avatarUri!!)?.use { it.readBytes() }
+                                            ?: error("Could not read the selected profile photo.")
+                                        val sourceBitmap = android.graphics.BitmapFactory.decodeByteArray(
+                                            source, 0, source.size
+                                        ) ?: error("Could not decode the selected profile photo.")
+                                        val side = minOf(sourceBitmap.width, sourceBitmap.height)
+                                        val left = (sourceBitmap.width - side) / 2
+                                        val top = (sourceBitmap.height - side) / 2
+                                        val cropped = android.graphics.Bitmap.createBitmap(
+                                            sourceBitmap, left, top, side, side
+                                        )
+                                        val output = java.io.ByteArrayOutputStream()
+                                        cropped.compress(android.graphics.Bitmap.CompressFormat.JPEG, 92, output)
+                                        croppedAvatarBytes = output.toByteArray()
+                                        cropped.recycle()
+                                        sourceBitmap.recycle()
+                                    } catch (e: Exception) {
+                                        message = e.message ?: "Could not crop the profile photo."
+                                    }
+                                }
+                            },
+                            enabled = !uploadingAvatar
+                        ) {
+                            Text("Crop photo")
+                        }
+                    }
                 }
             }
             item { Text(profile.email ?: "") }
@@ -2449,14 +2516,17 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                                     val uri = avatarUri!!
                                     val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                                         ?: error("Could not read the selected profile photo.")
-                                    val mime = context.contentResolver.getType(uri).orEmpty()
-                                    val extension = when {
-                                        mime.contains("png") -> "png"
-                                        mime.contains("webp") -> "webp"
-                                        else -> "jpg"
+                                    val uploadBytes = croppedAvatarBytes ?: bytes
+                                    val extension = if (croppedAvatarBytes != null) "jpg" else {
+                                        val mime = context.contentResolver.getType(uri).orEmpty()
+                                        when {
+                                            mime.contains("png") -> "png"
+                                            mime.contains("webp") -> "webp"
+                                            else -> "jpg"
+                                        }
                                     }
                                     val path = profile.id + "/avatar-" + System.currentTimeMillis() + "." + extension
-                                    Supabase.client.storage.from("camillian-media").upload(path, bytes) { upsert = false }
+                                    Supabase.client.storage.from("camillian-media").upload(path, uploadBytes) { upsert = false }
                                     avatarUrl = Supabase.client.storage.from("camillian-media").publicUrl(path)
                                 }
 
