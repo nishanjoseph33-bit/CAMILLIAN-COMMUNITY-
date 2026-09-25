@@ -1101,10 +1101,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
     var loading by remember { mutableStateOf(true) }
     var message by remember { mutableStateOf("") }
     var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
-
-    fun loadSocialData() {
-        LaunchedEffect(Unit) {}
-    }
+    val scope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         try {
@@ -1167,7 +1164,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                         Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("New friend request", modifier = Modifier.weight(1f))
                             TextButton(onClick = {
-                                CoroutineScope(Dispatchers.Main).launch {
+                                scope.launch {
                                     try {
                                         Supabase.client.postgrest.rpc("respond_friend_request", buildJsonObject {
                                             put("request_id", request.id)
