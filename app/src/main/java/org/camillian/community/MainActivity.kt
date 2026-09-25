@@ -367,7 +367,7 @@ private data class PostReaction(
 )
 
 @Composable
-private fun HomeScreen(profile: MemberProfile) {
+private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     var posts by remember { mutableStateOf<List<FeedPost>>(emptyList()) }
     var composer by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
@@ -422,6 +422,18 @@ private fun HomeScreen(profile: MemberProfile) {
                 reactionCounts = reactions.groupingBy { it.postId }.eachCount()
             } catch (e: Exception) {
                 message = e.message ?: "Could not load reactions."
+            }
+        }
+    }
+
+    fun deletePost(postId: String) {
+        scope.launch {
+            try {
+                Supabase.client.postgrest.rpc("delete_own_post", buildJsonObject { put("target_post_id", postId) })
+                posts = posts.filterNot { it.id == postId }
+                message = ""
+            } catch (e: Exception) {
+                message = e.message ?: "Could not delete post."
             }
         }
     }
@@ -619,7 +631,10 @@ private fun HomeScreen(profile: MemberProfile) {
                                 }
                                 Text(reactionCounts[post.id]?.toString() ?: "0")
                                 Spacer(Modifier.width(8.dp))
-                                TextButton(onClick = { commentPostId = post.id }) { Text("Comments") }
+                                TextButton(onClick = { commentPostId = post.id }) { Text(localized("Comments", language)) }
+                                if (post.authorId == profile.id) {
+                                    TextButton(onClick = { deletePost(post.id) }) { Text(localized("Delete", language)) }
+                                }
                             }
                         }
                     }
@@ -768,7 +783,7 @@ private data class CommunityEvent(
 )
 
 @Composable
-private fun EventsScreen() {
+private fun EventsScreen(language: String = "English") {
     var events by remember { mutableStateOf<List<CommunityEvent>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var message by remember { mutableStateOf("") }
@@ -819,7 +834,7 @@ private data class Organization(
 )
 
 @Composable
-private fun CommunitiesScreen() {
+private fun CommunitiesScreen(language: String = "English") {
     var organizations by remember { mutableStateOf<List<Organization>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
 
@@ -879,7 +894,7 @@ private data class ChatMessage(
 )
 
 @Composable
-private fun MessagesScreen(profile: MemberProfile) {
+private fun MessagesScreen(profile: MemberProfile, language: String = "English") {
     var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
     var selected by remember { mutableStateOf<Conversation?>(null) }
     var loading by remember { mutableStateOf(true) }
