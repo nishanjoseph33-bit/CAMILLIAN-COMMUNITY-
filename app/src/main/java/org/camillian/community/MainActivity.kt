@@ -356,6 +356,13 @@ private fun MessageNotificationListener(profile: MemberProfile) {
                 val incoming = change.decodeRecord<ChatMessage>()
                 if (incoming.senderId == profile.id) return@collect
 
+                try {
+                    Supabase.client.postgrest.rpc(
+                        "mark_message_delivered",
+                        buildJsonObject { put("message_id", incoming.id) }
+                    )
+                } catch (_: Exception) {}
+
                 scope.launch {
                     try {
                         val sender = Supabase.client.from("profiles").select {
@@ -1916,15 +1923,17 @@ private fun FriendsScreen(
             message = ""
             try {
                 // The RPC atomically creates (or reuses) the private chat and returns its UUID.
-                // Avoid a second SELECT here because the RPC already returns the conversation UUID.
                 val conversationId = Supabase.client.postgrest
                     .rpc("ensure_friend_conversation", buildJsonObject { put("target_user_id", memberId) })
                     .decodeSingle<String>()
 
+                val member = members.firstOrNull { it.id == memberId }
                 onOpenChat(
                     Conversation(
                         id = conversationId,
-                        title = "Private conversation",
+                        title = member?.fullName?.takeIf { it.isNotBlank() }
+                            ?: member?.religiousName?.takeIf { it.isNotBlank() }
+                            ?: "Conversation",
                         isGroup = false
                     )
                 )
@@ -2286,7 +2295,9 @@ private data class ChatMessage(
     @SerialName("conversation_id") val conversationId: String,
     @SerialName("sender_id") val senderId: String,
     @SerialName("message_text") val messageText: String,
-    @SerialName("created_at") val createdAt: String? = null
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("delivered_at") val deliveredAt: String? = null,
+    @SerialName("seen_at") val seenAt: String? = null
 )
 
 @Composable
@@ -2421,10 +2432,21 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
     fun loadMessages() {
         scope.launch {
             try {
-                messages = Supabase.client.from("messages").select {
+                val loaded = Supabase.client.from("messages").select {
                     filter { filter("conversation_id", FilterOperator.EQ, conversation.id) }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
                 }.decodeList<ChatMessage>()
+
+                // Opening the conversation means incoming messages are both delivered and seen.
+                loaded.filter { it.senderId != profile.id && it.seenAt == null }.forEach { incoming ->
+                    try {
+                        Supabase.client.postgrest.rpc(
+                            "mark_message_seen",
+                            buildJsonObject { put("message_id", incoming.id) }
+                        )
+                    } catch (_: Exception) {}
+                }
+                messages = loaded
             } catch (e: Exception) {
                 message = userFacingSupabaseError(e, "Could not load messages.")
             }
@@ -2494,7 +2516,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                         fontWeight = FontWeight.SemiBold
                     )
                     Text(
-                        localized("Private conversation", language),
+                        localized("Messages", language),
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -2525,6 +2547,19 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                     ) {
                         Column(Modifier.padding(12.dp)) {
                             Text(item.messageText)
+                            if (mine) {
+                                Spacer(Modifier.height(2.dp))
+                                Text(
+                                    when {
+                                        item.seenAt != null -> "✓✓✓"
+                                        item.deliveredAt != null -> "✓✓"
+                                        else -> "✓"
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.End)
+                                )
+                            }
                             translatedMessages[item.id]?.let { translated ->
                                 Spacer(Modifier.height(6.dp))
                                 HorizontalDivider()
@@ -2590,7 +2625,14 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                     value = composer,
                     onValueChange = { composer = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text(localized("Message...", language)) },
+                    placeholder = {
+                        Text(
+                            if (!otherMemberName.isNullOrBlank())
+                                "Message ${otherMemberName}..."
+                            else
+                                localized("Message...", language)
+                        )
+                    },
                     maxLines = 5,
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
