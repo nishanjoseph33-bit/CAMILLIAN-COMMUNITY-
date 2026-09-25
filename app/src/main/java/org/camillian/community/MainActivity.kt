@@ -26,6 +26,13 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Event
+import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.People
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.handleDeeplinks
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
@@ -78,6 +86,7 @@ private data class MemberProfile(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Supabase.client.handleDeeplinks(intent)
         setContent {
     MaterialTheme(
         colorScheme = lightColorScheme(
@@ -648,7 +657,6 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     var commentPostId by remember { mutableStateOf<String?>(null) }
     var showComposer by remember { mutableStateOf(false) }
     var postProvince by remember { mutableStateOf(profile.province.orEmpty()) }
-    var provinceMenuExpanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -832,28 +840,23 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Share with the community", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        Text(localized("Share with the community", language), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         TextButton(onClick = { showComposer = false }) { Text("Close") }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text("Photo") }
-                        OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text("Video") }
+                        OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text(localized("Photo", language)) }
+                        OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text(localized("Video", language)) }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Box {
-                        OutlinedButton(onClick = { provinceMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
-                            Text(if (postProvince.isBlank()) "Add province" else "Province: $postProvince")
-                        }
-                        DropdownMenu(expanded = provinceMenuExpanded, onDismissRequest = { provinceMenuExpanded = false }) {
-                            if (!profile.province.isNullOrBlank()) {
-                                DropdownMenuItem(
-                                    text = { Text("Province: " + profile.province) },
-                                    onClick = { postProvince = profile.province.orEmpty(); provinceMenuExpanded = false }
-                                )
-                            }
-                            DropdownMenuItem(text = { Text("Clear province") }, onClick = { postProvince = ""; provinceMenuExpanded = false })
-                        }
-                    }
+                    OutlinedTextField(
+                        value = postProvince,
+                        onValueChange = { postProvince = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text(localized("Province", language)) },
+                        placeholder = { Text(localized("Type your province", language)) },
+                        shape = RoundedCornerShape(16.dp)
+                    )
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = composer,
@@ -1011,11 +1014,11 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                                     Text(if (reactionIds.contains(post.id)) "♥  " + (reactionCounts[post.id] ?: 0) else "♡  " + (reactionCounts[post.id] ?: 0), fontSize = 16.sp)
                                 }
                                 TextButton(onClick = { commentPostId = post.id }) {
-                                    Text("Comment")
+                                    Text(localized("Comment", language))
                                 }
                                 Spacer(Modifier.weight(1f))
                                 if (post.authorId == profile.id) {
-                                    TextButton(onClick = { deletePost(post.id) }) { Text("Delete") }
+                                    TextButton(onClick = { deletePost(post.id) }) { Text(localized("Delete", language)) }
                                 }
                             }
                         }
@@ -1120,7 +1123,17 @@ private fun localized(key: String, language: String): String {
         "Events" to mapOf("Italiano" to "Eventi", "Español" to "Eventos", "Português" to "Eventos", "Français" to "Événements", "Deutsch" to "Termine", "Tiếng Việt" to "Sự kiện", "Filipino" to "Mga Kaganapan"),
         "Communities" to mapOf("Italiano" to "Comunità", "Español" to "Comunidades", "Português" to "Comunidades", "Français" to "Communautés", "Deutsch" to "Gemeinschaften", "Tiếng Việt" to "Cộng đoàn", "Filipino" to "Mga Komunidad"),
         "Messages" to mapOf("Italiano" to "Messaggi", "Español" to "Mensajes", "Português" to "Mensagens", "Français" to "Messages", "Deutsch" to "Nachrichten", "Tiếng Việt" to "Tin nhắn", "Filipino" to "Mga Mensahe"),
-        "Profile" to mapOf("Italiano" to "Profilo", "Español" to "Perfil", "Português" to "Perfil", "Français" to "Profil", "Deutsch" to "Profil", "Tiếng Việt" to "Hồ sơ", "Filipino" to "Profile")
+        "Profile" to mapOf("Italiano" to "Profilo", "Español" to "Perfil", "Português" to "Perfil", "Français" to "Profil", "Deutsch" to "Profil", "Tiếng Việt" to "Hồ sơ", "Filipino" to "Profile"),
+        "Friends" to mapOf("Italiano" to "Amici", "Español" to "Amigos", "Português" to "Amigos", "Français" to "Amis", "Deutsch" to "Freunde", "Tiếng Việt" to "Bạn bè", "Filipino" to "Mga Kaibigan"),
+        "Province" to mapOf("Italiano" to "Provincia", "Español" to "Provincia", "Português" to "Província", "Français" to "Province", "Deutsch" to "Provinz", "Tiếng Việt" to "Tỉnh dòng", "Filipino" to "Probinsya"),
+        "Type your province" to mapOf("Italiano" to "Scrivi la tua provincia", "Español" to "Escribe tu provincia", "Português" to "Digite sua província", "Français" to "Saisissez votre province", "Deutsch" to "Provinz eingeben", "Tiếng Việt" to "Nhập tỉnh dòng của bạn", "Filipino" to "Ilagay ang iyong probinsya"),
+        "Share with the community" to mapOf("Italiano" to "Condividi con la comunità", "Español" to "Comparte con la comunidad", "Português" to "Partilhe com a comunidade", "Français" to "Partager avec la communauté", "Deutsch" to "Mit der Gemeinschaft teilen", "Tiếng Việt" to "Chia sẻ với cộng đoàn", "Filipino" to "Ibahagi sa komunidad"),
+        "Write something for the community..." to mapOf("Italiano" to "Scrivi qualcosa per la comunità...", "Español" to "Escribe algo para la comunidad...", "Português" to "Escreva algo para a comunidade...", "Français" to "Écrivez quelque chose pour la communauté...", "Deutsch" to "Schreibe etwas für die Gemeinschaft...", "Tiếng Việt" to "Viết điều gì đó cho cộng đoàn...", "Filipino" to "Sumulat para sa komunidad..."),
+        "Photo" to mapOf("Italiano" to "Foto", "Español" to "Foto", "Português" to "Foto", "Français" to "Photo", "Deutsch" to "Foto", "Tiếng Việt" to "Ảnh", "Filipino" to "Larawan"),
+        "Video" to mapOf("Italiano" to "Video", "Español" to "Vídeo", "Português" to "Vídeo", "Français" to "Vidéo", "Deutsch" to "Video", "Tiếng Việt" to "Video", "Filipino" to "Video"),
+        "Publish" to mapOf("Italiano" to "Pubblica", "Español" to "Publicar", "Português" to "Publicar", "Français" to "Publier", "Deutsch" to "Veröffentlichen", "Tiếng Việt" to "Đăng", "Filipino" to "I-publish"),
+        "Comment" to mapOf("Italiano" to "Commenta", "Español" to "Comentar", "Português" to "Comentar", "Français" to "Commenter", "Deutsch" to "Kommentieren", "Tiếng Việt" to "Bình luận", "Filipino" to "Magkomento"),
+        "Delete" to mapOf("Italiano" to "Elimina", "Español" to "Eliminar", "Português" to "Excluir", "Français" to "Supprimer", "Deutsch" to "Löschen", "Tiếng Việt" to "Xóa", "Filipino" to "Tanggalin")
     )
     return if (language == "English") key else data[key]?.get(language) ?: key
 }
@@ -1136,8 +1149,17 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { tab = item },
-                        icon = { Text(item.take(1)) },
-                        label = { Text(localized(item, language)) }
+                        icon = {
+                            when (item) {
+                                "Home" -> Icon(Icons.Filled.Home, contentDescription = null)
+                                "Friends" -> Icon(Icons.Filled.People, contentDescription = null)
+                                "Events" -> Icon(Icons.Filled.Event, contentDescription = null)
+                                "Communities" -> Icon(Icons.Filled.Group, contentDescription = null)
+                                "Messages" -> Icon(Icons.Filled.Chat, contentDescription = null)
+                                else -> Icon(Icons.Filled.Person, contentDescription = null)
+                            }
+                        },
+                        label = { Text("") }
                     )
                 }
             }
