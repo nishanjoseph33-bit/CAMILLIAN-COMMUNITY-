@@ -18,6 +18,8 @@ import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 @Serializable
 private data class MemberProfile(
@@ -175,12 +177,14 @@ private fun AdminDashboard(profile: MemberProfile) {
             actionMemberId = member.id
             message = ""
             try {
+                val parameters = buildJsonObject {
+                    put("target_profile_id", member.id)
+                    put("new_status", newStatus)
+                }
+
                 Supabase.client.postgrest.rpc(
                     "admin_set_member_status",
-                    mapOf(
-                        "target_profile_id" to member.id,
-                        "new_status" to newStatus
-                    )
+                    parameters
                 )
                 message = "Member status changed to $newStatus."
                 loadMembers()
