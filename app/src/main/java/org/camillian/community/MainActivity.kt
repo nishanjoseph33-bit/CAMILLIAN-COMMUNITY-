@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,12 +56,29 @@ private data class MemberProfile(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) { App(recoveryMode = intent?.dataString?.contains("type=recovery") == true) } } }
+        setContent {
+    MaterialTheme(
+        colorScheme = lightColorScheme(
+            primary = Color(0xFFC8102E),
+            onPrimary = Color.White,
+            secondary = Color(0xFF0057B8),
+            onSecondary = Color.White,
+            tertiary = Color(0xFF0057B8),
+            background = Color(0xFFFFF8F8),
+            surface = Color(0xFFFFF8F8)
+        )
+    ) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
+            App(recoveryMode = intent?.dataString?.contains("type=recovery") == true)
+        }
+    }
+}
     }
 }
 
 @Composable
 private fun App(recoveryMode: Boolean = false) {
+    var language by remember { mutableStateOf("English") }
     var profile by remember { mutableStateOf<MemberProfile?>(null) }
     var message by remember { mutableStateOf("") }
     val appScope = rememberCoroutineScope()
@@ -72,6 +90,8 @@ private fun App(recoveryMode: Boolean = false) {
         }
         AppBackground {
             LoginScreen(
+                language = language,
+                onLanguageChange = { language = it },
                 onApproved = { profile = it },
                 onMessage = { message = it },
                 initialMessage = message
@@ -82,7 +102,7 @@ private fun App(recoveryMode: Boolean = false) {
             AppBackground { AdminDashboard(profile!!) }
         } else {
             AppBackground {
-                CommunityShell(profile!!, onProfileUpdated = { updated -> profile = updated }, onLogout = {
+                CommunityShell(profile!!, language = language, onLanguageChange = { language = it }, onProfileUpdated = { updated -> profile = updated }, onLogout = {
                     appScope.launch {
                         Supabase.client.auth.signOut()
                         profile = null
@@ -105,7 +125,7 @@ private fun AppBackground(content: @Composable () -> Unit) {
         )
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color.Black.copy(alpha = 0.22f)
+            color = Color.Black.copy(alpha = 0.44f)
         ) {}
         content()
     }
