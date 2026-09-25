@@ -729,9 +729,8 @@ private fun localized(key: String, language: String): String {
 }
 
 @Composable
-private fun CommunityShell(profile: MemberProfile, onProfileUpdated: (MemberProfile) -> Unit, onLogout: () -> Unit) {
+private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("Home") }
-    var language by remember { mutableStateOf("English") }
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -748,11 +747,11 @@ private fun CommunityShell(profile: MemberProfile, onProfileUpdated: (MemberProf
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
             when (tab) {
-                "Home" -> HomeScreen(profile)
-                "Events" -> EventsScreen()
-                "Communities" -> CommunitiesScreen()
-                "Messages" -> MessagesScreen(profile)
-                "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = { language = it }, onProfileUpdated = onProfileUpdated)
+                "Home" -> HomeScreen(profile, language)
+                "Events" -> EventsScreen(language)
+                "Communities" -> CommunitiesScreen(language)
+                "Messages" -> MessagesScreen(profile, language)
+                "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated)
             }
         }
     }
