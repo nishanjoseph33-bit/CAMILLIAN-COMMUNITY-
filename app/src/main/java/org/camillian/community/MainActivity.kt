@@ -301,25 +301,14 @@ private fun HomeScreen(profile: MemberProfile) {
                                 }
                                 Text(reactionCounts[post.id]?.toString() ?: "0")
                             }
-{ Text("Send") }
-                                }
-                            )
-                            }
                         }
                     }
                 }
             }
         }
     }
+}
 
-@Serializable
-private data class CommentRow(
-    val id: String,
-    @SerialName("post_id") val postId: String,
-    @SerialName("author_id") val authorId: String,
-    @SerialName("text_content") val textContent: String,
-    @SerialName("created_at") val createdAt: String? = null
-)
 
 @Serializable
 private data class PostReaction(
