@@ -369,6 +369,10 @@ private fun HomeScreen(profile: MemberProfile) {
             }
         }
     }
+
+    if (commentPostId != null) {
+        CommentsDialog(postId = commentPostId!!, profile = profile, onDismiss = { commentPostId = null })
+    }
 }
 
 
