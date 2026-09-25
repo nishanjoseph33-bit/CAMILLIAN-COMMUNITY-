@@ -814,6 +814,7 @@ private data class PostReaction(
     val reaction: String = "like"
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     var posts by remember { mutableStateOf<List<FeedPost>>(emptyList()) }
