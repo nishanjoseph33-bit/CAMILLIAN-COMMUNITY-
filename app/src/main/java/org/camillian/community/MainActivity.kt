@@ -4,6 +4,7 @@ import android.os.Bundle
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
@@ -44,6 +45,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.ContentScale
+
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
@@ -408,7 +410,7 @@ private fun LoginScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = if (compact) 18.dp else 34.dp, vertical = if (compact) 18.dp else 28.dp)
+                .padding(horizontal = if (compact) 10.dp else 22.dp, vertical = if (compact) 14.dp else 22.dp)
                 .border(2.dp, Color.White, RoundedCornerShape(38.dp))
                 .padding(if (compact) 10.dp else 16.dp)
         ) {
@@ -422,7 +424,7 @@ private fun LoginScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = if (compact) 24.dp else 54.dp, vertical = if (compact) 22.dp else 30.dp),
+                        .padding(horizontal = if (compact) 18.dp else 46.dp, vertical = if (compact) 18.dp else 24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Row(
@@ -458,9 +460,9 @@ private fun LoginScreen(
                                 painter = painterResource(id = R.drawable.camillian_logo),
                                 contentDescription = "Camillian logo",
                                 modifier = Modifier
-                                    .size(if (compact) 94.dp else 116.dp)
-                                    .border(2.dp, Color.White, RoundedCornerShape(50)),
-                                contentScale = ContentScale.Fit
+                                    .size(if (compact) 108.dp else 134.dp)
+                                    .clip(RoundedCornerShape(50)),
+                                contentScale = ContentScale.Crop
                             )
                         }
                     }
@@ -1070,8 +1072,18 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                     }
                 }
             ) {
-                IconButton(onClick = { showNotifications = !showNotifications }) {
-                    Icon(Icons.Filled.Notifications, contentDescription = localized("Notifications", language))
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFE5A15A),
+                    shadowElevation = 5.dp
+                ) {
+                    IconButton(onClick = { showNotifications = !showNotifications }) {
+                        Icon(
+                            Icons.Filled.Notifications,
+                            contentDescription = localized("Notifications", language),
+                            tint = Color(0xFF3A1D12)
+                        )
+                    }
                 }
             }
             TextButton(onClick = { refreshHome() }) { Text("↻", fontSize = 22.sp) }
@@ -2385,12 +2397,16 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
     var bio by remember { mutableStateOf(profile.bio.orEmpty()) }
     var avatarUrl by remember { mutableStateOf(profile.avatarUrl) }
     var avatarUri by remember { mutableStateOf<Uri?>(null) }
+    var croppedAvatarBytes by remember { mutableStateOf<ByteArray?>(null) }
     var saving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
     var uploadingAvatar by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> avatarUri = uri }
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        avatarUri = uri
+        croppedAvatarBytes = null
+    }
 
     Column(Modifier.fillMaxSize()) {
         Text(localized("My Profile", language), style = MaterialTheme.typography.headlineMedium,
