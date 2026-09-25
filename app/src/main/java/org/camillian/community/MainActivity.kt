@@ -844,7 +844,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
         mediaKind = if (uri?.toString()?.contains("video", ignoreCase = true) == true) "video" else "photo"
     }
 
-    fun loadFeed(showFullLoading: Boolean = true) {
+    fun loadFeed(showFullLoading: Boolean = true, onComplete: (() -> Unit)? = null) {
         scope.launch {
             if (showFullLoading) loading = true
             try {
@@ -856,6 +856,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                 message = e.message ?: "Could not load the community feed."
             } finally {
                 loading = false
+                onComplete?.invoke()
             }
         }
     }
@@ -875,17 +876,12 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
 
     fun refreshHome() {
         if (refreshing) return
-        scope.launch {
-            refreshing = true
-            try {
-                loadFeed(false)
-                loadAuthors()
-                loadReactions()
-                loadNotifications()
-                delay(250)
-            } finally {
-                refreshing = false
-            }
+        refreshing = true
+        loadFeed(false) {
+            loadAuthors()
+            loadReactions()
+            loadNotifications()
+            refreshing = false
         }
     }
 
