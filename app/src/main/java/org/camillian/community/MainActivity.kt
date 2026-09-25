@@ -368,6 +368,211 @@ private fun HomeScreen(profile: MemberProfile) {
     }
 }
 
+
+@Composable
+private fun CommunityShell(profile: MemberProfile, onLogout: () -> Unit) {
+    var tab by remember { mutableStateOf("Home") }
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                listOf("Home", "Events", "Communities", "Profile").forEach { item ->
+                    NavigationBarItem(
+                        selected = tab == item,
+                        onClick = { tab = item },
+                        icon = { Text(item.take(1)) },
+                        label = { Text(item) }
+                    )
+                }
+            }
+        }
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            when (tab) {
+                "Home" -> HomeScreen(profile)
+                "Events" -> EventsScreen()
+                "Communities" -> CommunitiesScreen()
+                "Profile" -> ProfileScreen(profile, onLogout)
+            }
+        }
+    }
+}
+
+@Serializable
+private data class CommunityEvent(
+    val id: String,
+    val title: String,
+    val description: String? = null,
+    val location: String? = null,
+    @SerialName("start_at") val startAt: String? = null,
+    @SerialName("end_at") val endAt: String? = null
+)
+
+@Composable
+private fun EventsScreen() {
+    var events by remember { mutableStateOf<List<CommunityEvent>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var message by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        try {
+            events = Supabase.client.from("events").select {
+                order("start_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+            }.decodeList<CommunityEvent>()
+        } catch (e: Exception) {
+            message = e.message ?: "Could not load events."
+        } finally {
+            loading = false
+        }
+    }
+
+    Column(Modifier.fillMaxSize().padding(20.dp)) {
+        Text("Events", style = MaterialTheme.typography.headlineMedium)
+        Text("Retreats, conferences, chapters, feast days and community events.")
+        Spacer(Modifier.height(16.dp))
+        if (loading) CircularProgressIndicator()
+        else if (events.isEmpty()) Text("No events have been published yet.")
+        else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(events, key = { it.id }) { event ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(event.title, style = MaterialTheme.typography.titleLarge)
+                        if (!event.startAt.isNullOrBlank()) Text(event.startAt!!)
+                        if (!event.location.isNullOrBlank()) Text("Location: " + event.location)
+                        if (!event.description.isNullOrBlank()) {
+                            Spacer(Modifier.height(6.dp))
+                            Text(event.description!!)
+                        }
+                    }
+                }
+            }
+        }
+        if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.error)
+    }
+}
+
+@Serializable
+private data class Organization(
+    val id: String,
+    val name: String,
+    val type: String,
+    val description: String? = null
+)
+
+@Composable
+private fun CommunitiesScreen() {
+    var organizations by remember { mutableStateOf<List<Organization>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        try {
+            organizations = Supabase.client.from("organizations").select {
+                order("name", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+            }.decodeList<Organization>()
+        } catch (_: Exception) {
+        } finally {
+            loading = false
+        }
+    }
+
+    Column(Modifier.fillMaxSize().padding(20.dp)) {
+        Text("Communities", style = MaterialTheme.typography.headlineMedium)
+        Text("Provinces, delegations, communities and formation houses.")
+        Spacer(Modifier.height(16.dp))
+        if (loading) CircularProgressIndicator()
+        else if (organizations.isEmpty()) Text("No communities have been added yet.")
+        else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(organizations, key = { it.id }) { org ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text(org.name, style = MaterialTheme.typography.titleLarge)
+                        Text(org.type)
+                        if (!org.description.isNullOrBlank()) Text(org.description!!)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit) {
+    var fullName by remember { mutableStateOf(profile.fullName.orEmpty()) }
+    var religiousName by remember { mutableStateOf(profile.religiousName.orEmpty()) }
+    var phone by remember { mutableStateOf(profile.phone.orEmpty()) }
+    var place by remember { mutableStateOf(profile.place.orEmpty()) }
+    var province by remember { mutableStateOf(profile.province.orEmpty()) }
+    var delegation by remember { mutableStateOf(profile.delegation.orEmpty()) }
+    var community by remember { mutableStateOf(profile.community.orEmpty()) }
+    var ministry by remember { mutableStateOf(profile.ministry.orEmpty()) }
+    var roleTitle by remember { mutableStateOf(profile.roleTitle.orEmpty()) }
+    var bio by remember { mutableStateOf(profile.bio.orEmpty()) }
+    var saving by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+    Column(Modifier.fillMaxSize()) {
+        Text("My Profile", style = MaterialTheme.typography.headlineMedium,
+            modifier = Modifier.padding(20.dp))
+        LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item { Text(profile.email ?: "") }
+            item { OutlinedTextField(fullName, { fullName = it }, Modifier.fillMaxWidth(), label = { Text("Name") }) }
+            item { OutlinedTextField(religiousName, { religiousName = it }, Modifier.fillMaxWidth(), label = { Text("Religious name") }) }
+            item { OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text("Phone") }) }
+            item { OutlinedTextField(place, { place = it }, Modifier.fillMaxWidth(), label = { Text("Place") }) }
+            item { OutlinedTextField(province, { province = it }, Modifier.fillMaxWidth(), label = { Text("Province") }) }
+            item { OutlinedTextField(delegation, { delegation = it }, Modifier.fillMaxWidth(), label = { Text("Delegation") }) }
+            item { OutlinedTextField(community, { community = it }, Modifier.fillMaxWidth(), label = { Text("Community") }) }
+            item { OutlinedTextField(ministry, { ministry = it }, Modifier.fillMaxWidth(), label = { Text("Ministry") }) }
+            item { OutlinedTextField(roleTitle, { roleTitle = it }, Modifier.fillMaxWidth(), label = { Text("Role / title") }) }
+            item { OutlinedTextField(bio, { bio = it }, Modifier.fillMaxWidth(), minLines = 4, label = { Text("Bio") }) }
+            item {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            saving = true
+                            try {
+                                Supabase.client.from("profiles").update(buildJsonObject {
+                                    put("full_name", fullName.trim())
+                                    put("religious_name", religiousName.trim())
+                                    put("phone", phone.trim())
+                                    put("place", place.trim())
+                                    put("province", province.trim())
+                                    put("delegation", delegation.trim())
+                                    put("community", community.trim())
+                                    put("ministry", ministry.trim())
+                                    put("role_title", roleTitle.trim())
+                                    put("bio", bio.trim())
+                                }) {
+                                    filter { filter("id", FilterOperator.EQ, profile.id) }
+                                }
+                                message = "Profile saved."
+                            } catch (e: Exception) {
+                                message = e.message ?: "Could not save profile."
+                            } finally {
+                                saving = false
+                            }
+                        }
+                    },
+                    enabled = !saving,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text(if (saving) "Saving..." else "Save profile") }
+            }
+            if (message.isNotBlank()) item {
+                Text(message, color = MaterialTheme.colorScheme.primary)
+            }
+            item {
+                OutlinedButton(onClick = onLogout, modifier = Modifier.fillMaxWidth()) {
+                    Text("Sign out")
+                }
+            }
+            item { Spacer(Modifier.height(80.dp)) }
+        }
+    }
+}
+
 @Composable
 private fun AdminDashboard(profile: MemberProfile) {
     var status by remember { mutableStateOf("pending") }
