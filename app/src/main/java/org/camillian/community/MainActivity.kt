@@ -18,6 +18,7 @@ import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.material3.lightColorScheme
@@ -1324,11 +1325,13 @@ private fun AdminDashboard(profile: MemberProfile) {
             actionMemberId = member.id
             message = ""
             try {
-                val parameters = buildJsonObject {
-                    put("target_profile_id", member.id)
-                    put("new_status", newStatus)
-                }
-                Supabase.client.postgrest.rpc("admin_set_member_status", parameters)
+                Supabase.client.postgrest.rpc(
+                    "admin_set_member_status",
+                    buildJsonObject {
+                        put("target_profile_id", member.id)
+                        put("new_status", newStatus)
+                    }
+                )
                 message = "Member status changed to $newStatus."
                 loadMembers()
             } catch (e: Exception) {
@@ -1341,124 +1344,116 @@ private fun AdminDashboard(profile: MemberProfile) {
 
     LaunchedEffect(status) { loadMembers() }
 
-    Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Admin Dashboard", style = MaterialTheme.typography.headlineMedium)
-                Text("Administrator: ${profile.fullName ?: profile.email ?: "Admin"}")
-            }
-            TextButton(
-                onClick = { loadMembers() },
-                enabled = !loading
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp),
+        contentPadding = PaddingValues(top = 20.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        item {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(if (loading) "Loading..." else "Refresh")
+                Column(Modifier.weight(1f)) {
+                    Text("Admin Dashboard", style = MaterialTheme.typography.headlineMedium)
+                    Text("Administrator: ${profile.fullName ?: profile.email ?: "Admin"}")
+                }
+                TextButton(onClick = { loadMembers() }, enabled = !loading) {
+                    Text(if (loading) "Loading..." else "Refresh")
+                }
             }
         }
 
-        Spacer(Modifier.height(16.dp))
-        AdminTools(profile)
-        Spacer(Modifier.height(16.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf("pending", "approved", "rejected", "suspended").forEach { value ->
-                FilterChip(
-                    selected = status == value,
-                    onClick = { status = value },
-                    label = { Text(value.replaceFirstChar { it.uppercase() }) }
-                )
+        item { AdminTools(profile) }
+
+        item {
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(vertical = 2.dp)
+            ) {
+                items(listOf("pending", "approved", "rejected", "suspended")) { value ->
+                    FilterChip(
+                        selected = status == value,
+                        onClick = { status = value },
+                        label = { Text(value.replaceFirstChar { it.uppercase() }) }
+                    )
+                }
             }
         }
-
-        Spacer(Modifier.height(16.dp))
 
         if (message.isNotBlank()) {
-            Text(message, color = MaterialTheme.colorScheme.primary)
-            Spacer(Modifier.height(8.dp))
+            item {
+                Text(message, color = MaterialTheme.colorScheme.primary)
+            }
         }
 
         if (loading && members.isEmpty()) {
-            Box(
-                Modifier.fillMaxWidth().padding(24.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
+            item {
+                Box(
+                    Modifier.fillMaxWidth().padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
             }
         }
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(members, key = { it.id }) { member ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(
-                            member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member",
-                            style = MaterialTheme.typography.titleMedium
-                        )
-                        Spacer(Modifier.height(4.dp))
-                        Text(member.email ?: "No email")
-                        Spacer(Modifier.height(4.dp))
-                        Text("Role: ${member.memberRole}")
-                        Text("Status: ${member.memberStatus.replaceFirstChar { it.uppercase() }}")
-                        Spacer(Modifier.height(12.dp))
+        items(members, key = { it.id }) { member ->
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text(
+                        member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(member.email ?: "No email")
+                    Spacer(Modifier.height(4.dp))
+                    Text("Role: ${member.memberRole}")
+                    Text("Status: ${member.memberStatus.replaceFirstChar { it.uppercase() }}")
+                    Spacer(Modifier.height(12.dp))
 
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            if (member.memberStatus == "pending") {
-                                Button(
-                                    onClick = { changeStatus(member, "approved") },
-                                    enabled = actionMemberId == null
-                                ) {
-                                    Text(
-                                        if (actionMemberId == member.id) "Approving..."
-                                        else "Approve"
-                                    )
-                                }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        if (member.memberStatus == "pending") {
+                            Button(
+                                onClick = { changeStatus(member, "approved") },
+                                enabled = actionMemberId == null
+                            ) {
+                                Text(if (actionMemberId == member.id) "Approving..." else "Approve")
                             }
-
-                            if (member.memberStatus != "rejected") {
-                                OutlinedButton(
-                                    onClick = { changeStatus(member, "rejected") },
-                                    enabled = actionMemberId == null
-                                ) {
-                                    Text("Reject")
-                                }
-                            }
-
-                            if (member.memberStatus != "suspended") {
-                                OutlinedButton(
-                                    onClick = { changeStatus(member, "suspended") },
-                                    enabled = actionMemberId == null
-                                ) {
-                                    Text("Suspend")
-                                }
-                            }
+                        }
+                        if (member.memberStatus != "rejected") {
+                            OutlinedButton(
+                                onClick = { changeStatus(member, "rejected") },
+                                enabled = actionMemberId == null
+                            ) { Text("Reject") }
+                        }
+                        if (member.memberStatus != "suspended") {
+                            OutlinedButton(
+                                onClick = { changeStatus(member, "suspended") },
+                                enabled = actionMemberId == null
+                            ) { Text("Suspend") }
                         }
                     }
                 }
             }
+        }
 
-            if (!loading && members.isEmpty()) {
-                item {
-                    Card(Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(20.dp)) {
-                            Text(
-                                "No members in ${status.replaceFirstChar { it.uppercase() }}.",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            if (status == "pending") {
-                                Spacer(Modifier.height(6.dp))
-                                Text("If you just added a member in Supabase, tap Refresh.")
-                            }
+        if (!loading && members.isEmpty()) {
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(20.dp)) {
+                        Text(
+                            "No members in ${status.replaceFirstChar { it.uppercase() }}.",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        if (status == "pending") {
+                            Spacer(Modifier.height(6.dp))
+                            Text("If you just added a member in Supabase, tap Refresh.")
                         }
                     }
                 }
