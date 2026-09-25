@@ -933,6 +933,101 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit) {
     }
 }
 
+
+@Composable
+private fun AdminTools(profile: MemberProfile) {
+    var inviteCode by remember { mutableStateOf("") }
+    var announcement by remember { mutableStateOf("") }
+    var eventTitle by remember { mutableStateOf("") }
+    var eventLocation by remember { mutableStateOf("") }
+    var eventDescription by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Administration tools", style = MaterialTheme.typography.titleLarge)
+            OutlinedTextField(inviteCode, { inviteCode = it }, Modifier.fillMaxWidth(), label = { Text("New invitation code") })
+            Button(enabled = !busy && inviteCode.length >= 6, onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        Supabase.client.postgrest.rpc("admin_create_invite", buildJsonObject {
+                            put("plain_code", inviteCode.trim())
+                            put("invite_description", "Camillian member invitation")
+                            put("invite_max_uses", 1)
+                        })
+                        message = "Invitation created."
+                        inviteCode = ""
+                    } catch (e: Exception) { message = e.message ?: "Could not create invitation." }
+                    finally { busy = false }
+                }
+            }) { Text("Create invitation") }
+
+            HorizontalDivider()
+            OutlinedTextField(announcement, { announcement = it }, Modifier.fillMaxWidth(), minLines = 3, label = { Text("Announcement / news") })
+            Button(enabled = !busy && announcement.isNotBlank(), onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        Supabase.client.postgrest.rpc("admin_create_post", buildJsonObject {
+                            put("post_kind", "announcement")
+                            put("post_text", announcement.trim())
+                        })
+                        message = "Announcement published."
+                        announcement = ""
+                    } catch (e: Exception) { message = e.message ?: "Could not publish announcement." }
+                    finally { busy = false }
+                }
+            }) { Text("Publish announcement") }
+
+            HorizontalDivider()
+            OutlinedTextField(eventTitle, { eventTitle = it }, Modifier.fillMaxWidth(), label = { Text("Event title") })
+            OutlinedTextField(eventLocation, { eventLocation = it }, Modifier.fillMaxWidth(), label = { Text("Event location") })
+            OutlinedTextField(eventDescription, { eventDescription = it }, Modifier.fillMaxWidth(), minLines = 2, label = { Text("Event description") })
+            Button(enabled = !busy && eventTitle.isNotBlank(), onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        Supabase.client.postgrest.rpc("admin_create_event", buildJsonObject {
+                            put("event_title", eventTitle.trim())
+                            put("event_description", eventDescription.trim())
+                            put("event_location", eventLocation.trim())
+                        })
+                        message = "Event published."
+                        eventTitle = ""; eventLocation = ""; eventDescription = ""
+                    } catch (e: Exception) { message = e.message ?: "Could not create event." }
+                    finally { busy = false }
+                }
+            }) { Text("Create event") }
+
+            if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+private fun LanguageSelector() {
+    val languages = listOf(
+        "English", "Italiano", "Español", "Português",
+        "Français", "Deutsch", "Tiếng Việt", "Filipino"
+    )
+    var expanded by remember { mutableStateOf(false) }
+    var selected by remember { mutableStateOf("English") }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) { Text("Language: " + selected) }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            languages.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(language) },
+                    onClick = { selected = language; expanded = false }
+                )
+            }
+        }
+    }
+}
+
 @Composable
 private fun AdminDashboard(profile: MemberProfile) {
     var status by remember { mutableStateOf("pending") }
@@ -999,7 +1094,8 @@ private fun AdminDashboard(profile: MemberProfile) {
         }
 
         Spacer(Modifier.height(16.dp))
-
+        AdminTools(profile)
+        Spacer(Modifier.height(16.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
