@@ -1,10 +1,17 @@
 package org.camillian.community
 
 import android.os.Bundle
+import android.Manifest
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Intent
+import android.os.Build
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
+import androidx.core.app.NotificationCompat
 import androidx.activity.compose.setContent
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
@@ -62,6 +69,10 @@ import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.storage.storage
 import io.github.jan.supabase.functions.functions
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.decodeRecord
+import io.github.jan.supabase.realtime.postgresChangeFlow
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import io.ktor.client.request.get
@@ -189,6 +200,8 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
         else -> "home"
     }
 
+    if (profile != null) MessageNotificationListener(profile!!)
+
     var showLaunchSplash by remember { mutableStateOf(!(recoveryMode || inviteMode)) }
     var splashLeaving by remember { mutableStateOf(false) }
     val splashBlur by animateDpAsState(
@@ -253,6 +266,84 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
         }
     }
 }
+}
+
+@Composable
+private fun MessageNotificationListener(profile: MemberProfile) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    LaunchedEffect(profile.id) {
+        val channelId = "camillian_messages"
+        val notificationManager = context.getSystemService(NotificationManager::class.java)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            notificationManager.createNotificationChannel(
+                NotificationChannel(
+                    channelId,
+                    "Messages",
+                    NotificationManager.IMPORTANCE_HIGH
+                ).apply { description = "New Camillian Community messages" }
+            )
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        ) {
+            (context as? MainActivity)?.requestPermissions(
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS), 2001
+            )
+        }
+
+        try {
+            Supabase.client.realtime.connect()
+            val realtimeChannel = Supabase.client.channel("camillian-message-notifications")
+            val changes = realtimeChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+                table = "messages"
+            }
+
+            changes.collect { change ->
+                val incoming = change.decodeRecord<ChatMessage>()
+                if (incoming.senderId == profile.id) return@collect
+
+                scope.launch {
+                    try {
+                        val sender = Supabase.client.from("profiles").select {
+                            filter { filter("id", FilterOperator.EQ, incoming.senderId) }
+                        }.decodeList<MemberProfile>().firstOrNull()
+
+                        val senderName = sender?.fullName?.takeIf { it.isNotBlank() }
+                            ?: sender?.religiousName?.takeIf { it.isNotBlank() }
+                            ?: "New message"
+                        val body = incoming.messageText.takeIf { it.isNotBlank() }
+                            ?: "You received a new message."
+
+                        val intent = Intent(context, MainActivity::class.java).apply {
+                            flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        }
+                        val pendingIntent = PendingIntent.getActivity(
+                            context, incoming.conversationId.hashCode(), intent,
+                            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                        )
+
+                        val notification = NotificationCompat.Builder(context, channelId)
+                            .setSmallIcon(R.drawable.camillian_logo)
+                            .setContentTitle(senderName)
+                            .setContentText(body)
+                            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                            .setPriority(NotificationCompat.PRIORITY_HIGH)
+                            .setAutoCancel(true)
+                            .setContentIntent(pendingIntent)
+                            .build()
+
+                        notificationManager.notify(incoming.conversationId.hashCode(), notification)
+                    } catch (_: Exception) { }
+                }
+            }
+        } catch (_: Exception) { }
+    }
 }
 
 @Composable
