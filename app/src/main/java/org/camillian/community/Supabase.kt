@@ -16,6 +16,8 @@ object Supabase {
             flowType = io.github.jan.supabase.auth.FlowType.PKCE
             scheme = "camillian"
             host = "auth"
+            autoLoadFromStorage = true
+            alwaysAutoRefresh = true
         }
         install(Postgrest)
         install(Functions)
