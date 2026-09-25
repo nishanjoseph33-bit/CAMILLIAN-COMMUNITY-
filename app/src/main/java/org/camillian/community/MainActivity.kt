@@ -176,6 +176,8 @@ private fun RecoveryPasswordScreen(onDone: () -> Unit) {
 
 @Composable
 private fun LoginScreen(
+    language: String = "English",
+    onLanguageChange: (String) -> Unit = {},
     onApproved: (MemberProfile) -> Unit,
     onMessage: (String) -> Unit,
     initialMessage: String
@@ -201,11 +203,13 @@ private fun LoginScreen(
         )
         Spacer(Modifier.height(12.dp))
         Text("Camillian Community", style = MaterialTheme.typography.headlineMedium)
-        Text("Members only")
-        Spacer(Modifier.height(28.dp))
-        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text("Email") }, singleLine = true)
+        Text(localized("Members only", language))
+        Spacer(Modifier.height(8.dp))
+        LanguageSelector(selected = language, onSelected = onLanguageChange)
+        Spacer(Modifier.height(20.dp))
+        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), label = { Text(localized("Email", language)) }, singleLine = true)
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("Password") }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
+        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text(localized("Password", language)) }, visualTransformation = PasswordVisualTransformation(), singleLine = true)
         Spacer(Modifier.height(20.dp))
         Button(
             onClick = {
@@ -252,11 +256,11 @@ private fun LoginScreen(
             enabled = !loading && email.isNotBlank() && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text(if (loading) "Checking membership..." else "Sign in")
+            Text(if (loading) localized("Checking membership...", language) else localized("Sign in", language))
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            TextButton(onClick = { showRegister = true }) { Text("Register") }
-            TextButton(onClick = { showRecovery = true }) { Text("Forgot password?") }
+            TextButton(onClick = { showRegister = true }) { Text(localized("Register", language)) }
+            TextButton(onClick = { showRecovery = true }) { Text(localized("Forgot password?", language)) }
         }
         if (message.isNotBlank()) {
             Spacer(Modifier.height(16.dp))
