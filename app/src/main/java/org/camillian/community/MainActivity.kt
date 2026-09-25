@@ -213,6 +213,9 @@ private fun LoginScreen(
 }
 
 
+@Serializable
+private data class InviteCheck(val valid: Boolean)
+
 @Composable
 private fun RegisterDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
     var email by remember { mutableStateOf("") }
@@ -238,7 +241,7 @@ private fun RegisterDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
                 scope.launch {
                     busy = true
                     try {
-                        val valid = Supabase.client.postgrest.rpc("check_invite_code", buildJsonObject { put("invite_code", invite) }).decodeAs<Boolean>()
+                        val valid = Supabase.client.postgrest.rpc("check_invite_code", buildJsonObject { put("invite_code", invite) }).decodeSingle<InviteCheck>().valid
                         if (!valid) error("Invalid or expired invitation code.")
                         Supabase.client.auth.signUpWith(Email) {
                             this.email = email.trim()
