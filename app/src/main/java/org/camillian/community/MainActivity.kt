@@ -326,7 +326,7 @@ private fun LoginScreen(
                         modifier = Modifier.width(54.dp).height(3.dp),
                         shape = RoundedCornerShape(50),
                         color = Color(0xFFC8102E)
-                    )
+                    ) { }
 
                     Spacer(Modifier.height(if (compact) 24.dp else 32.dp))
 
@@ -503,6 +503,7 @@ private fun LoginScreen(
 
         if (showRecovery) {
             RecoveryDialog(
+                language = language,
                 onDismiss = { showRecovery = false },
                 onMessage = { message = it }
             )
@@ -610,7 +611,7 @@ private fun RegisterDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
 }
 
 @Composable
-private fun RecoveryDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
+private fun RecoveryDialog(language: String = "English", onDismiss: () -> Unit, onMessage: (String) -> Unit) {
     var email by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -1044,7 +1045,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     }
 
     if (commentPostId != null) {
-        CommentsDialog(postId = commentPostId!!, profile = profile, onDismiss = { commentPostId = null })
+        CommentsDialog(postId = commentPostId!!, profile = profile, language = language, onDismiss = { commentPostId = null })
     }
 }
 
@@ -1058,7 +1059,7 @@ private data class PostComment(
 )
 
 @Composable
-private fun CommentsDialog(postId: String, profile: MemberProfile, onDismiss: () -> Unit) {
+private fun CommentsDialog(postId: String, profile: MemberProfile, language: String = "English", onDismiss: () -> Unit) {
     var comments by remember { mutableStateOf<List<PostComment>>(emptyList()) }
     var composer by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
