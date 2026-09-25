@@ -73,6 +73,7 @@ import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.decodeRecord
 import io.github.jan.supabase.realtime.postgresChangeFlow
+import io.github.jan.supabase.realtime.realtime
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import io.ktor.client.request.get
@@ -303,6 +304,8 @@ private fun MessageNotificationListener(profile: MemberProfile) {
             val changes = realtimeChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
                 table = "messages"
             }
+
+            realtimeChannel.subscribe()
 
             changes.collect { change ->
                 val incoming = change.decodeRecord<ChatMessage>()
