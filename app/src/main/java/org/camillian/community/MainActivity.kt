@@ -6,6 +6,14 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.*
@@ -17,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -84,31 +93,40 @@ private fun App(recoveryMode: Boolean = false) {
     var message by remember { mutableStateOf("") }
     val appScope = rememberCoroutineScope()
 
-    if (profile == null) {
-        if (recoveryMode) {
-            AppBackground { RecoveryPasswordScreen(onDone = { profile = null }) }
-            return
-        }
-        AppBackground {
-            LoginScreen(
-                language = language,
-                onLanguageChange = { language = it },
-                onApproved = { profile = it },
-                onMessage = { message = it },
-                initialMessage = message
+    val destination = when {
+        recoveryMode -> "recovery"
+        profile == null -> "login"
+        profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin" -> "admin"
+        else -> "home"
+    }
+
+    AppBackground {
+        AnimatedContent(
+            targetState = destination,
+            transitionSpec = {
+                val entering = slideInHorizontally(initialOffsetX = { it / 7 }, animationSpec = tween(420)) + fadeIn(tween(260))
+                val exiting = slideOutHorizontally(targetOffsetX = { -it / 10 }, animationSpec = tween(360)) + fadeOut(tween(180))
+                entering.togetherWith(exiting)
+            },
+            label = "app-page-transition"
+        ) { screen ->
+            val blurRadius by animateDpAsState(
+                targetValue = if (transition.isRunning) 7.dp else 0.dp,
+                animationSpec = tween(if (transition.isRunning) 120 else 320),
+                label = "motion-blur"
             )
-        }
-    } else {
-        if (profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin") {
-            AppBackground { AdminDashboard(profile!!) }
-        } else {
-            AppBackground {
-                CommunityShell(profile!!, language = language, onLanguageChange = { language = it }, onProfileUpdated = { updated -> profile = updated }, onLogout = {
-                    appScope.launch {
-                        Supabase.client.auth.signOut()
-                        profile = null
-                    }
-                })
+            Box(Modifier.fillMaxSize().blur(blurRadius)) {
+                when (screen) {
+                    "recovery" -> RecoveryPasswordScreen(onDone = { profile = null })
+                    "login" -> LoginScreen(language = language, onLanguageChange = { language = it }, onApproved = { profile = it }, onMessage = { message = it }, initialMessage = message)
+                    "admin" -> AdminDashboard(profile!!)
+                    else -> CommunityShell(profile!!, language = language, onLanguageChange = { language = it }, onProfileUpdated = { updated -> profile = updated }, onLogout = {
+                        appScope.launch {
+                            Supabase.client.auth.signOut()
+                            profile = null
+                        }
+                    })
+                }
             }
         }
     }
@@ -745,8 +763,10 @@ private fun localized(key: String, language: String): String {
 }
 
 @Composable
+@Composable
 private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("Home") }
+
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -761,13 +781,29 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
             }
         }
     ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            when (tab) {
-                "Home" -> HomeScreen(profile, language)
-                "Events" -> EventsScreen(language)
-                "Communities" -> CommunitiesScreen(language)
-                "Messages" -> MessagesScreen(profile, language)
-                "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated)
+        AnimatedContent(
+            targetState = tab,
+            transitionSpec = {
+                val direction = if (targetState == "Home") -1 else 1
+                val entering = slideInHorizontally(initialOffsetX = { direction * it / 8 }, animationSpec = tween(380)) + fadeIn(tween(240))
+                val exiting = slideOutHorizontally(targetOffsetX = { -direction * it / 12 }, animationSpec = tween(320)) + fadeOut(tween(170))
+                entering.togetherWith(exiting)
+            },
+            label = "community-page-transition"
+        ) { currentTab ->
+            val blurRadius by animateDpAsState(
+                targetValue = if (transition.isRunning) 5.dp else 0.dp,
+                animationSpec = tween(if (transition.isRunning) 100 else 260),
+                label = "page-motion-blur"
+            )
+            Box(Modifier.fillMaxSize().padding(padding).blur(blurRadius)) {
+                when (currentTab) {
+                    "Home" -> HomeScreen(profile, language)
+                    "Events" -> EventsScreen(language)
+                    "Communities" -> CommunitiesScreen(language)
+                    "Messages" -> MessagesScreen(profile, language)
+                    "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated)
+                }
             }
         }
     }
