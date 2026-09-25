@@ -12,7 +12,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import coil.compose.AsyncImage
@@ -26,7 +25,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -111,12 +109,7 @@ private fun App(recoveryMode: Boolean = false) {
             },
             label = "app-page-transition"
         ) { screen ->
-            val blurRadius by animateDpAsState(
-                targetValue = if (transition.isRunning) 7.dp else 0.dp,
-                animationSpec = tween(if (transition.isRunning) 120 else 320),
-                label = "motion-blur"
-            )
-            Box(Modifier.fillMaxSize().blur(blurRadius)) {
+            Box(Modifier.fillMaxSize()) {
                 when (screen) {
                     "recovery" -> RecoveryPasswordScreen(onDone = { profile = null })
                     "login" -> LoginScreen(language = language, onLanguageChange = { language = it }, onApproved = { profile = it }, onMessage = { message = it }, initialMessage = message)
@@ -792,12 +785,7 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
             },
             label = "community-page-transition"
         ) { currentTab ->
-            val blurRadius by animateDpAsState(
-                targetValue = if (transition.isRunning) 5.dp else 0.dp,
-                animationSpec = tween(if (transition.isRunning) 100 else 260),
-                label = "page-motion-blur"
-            )
-            Box(Modifier.fillMaxSize().padding(padding).blur(blurRadius)) {
+            Box(Modifier.fillMaxSize().padding(padding)) {
                 when (currentTab) {
                     "Home" -> HomeScreen(profile, language)
                     "Events" -> EventsScreen(language)
