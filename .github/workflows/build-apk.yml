@@ -1,6 +1,7 @@
 name: Build Android APK
 # Build verification trigger
 # Social features build verification
+# Rebuild after compile fix
 
 on:
   workflow_dispatch:
