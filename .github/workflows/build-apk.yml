@@ -1,7 +1,7 @@
 name: Build Android APK
 # Build verification trigger
 # Social features build verification
-# Rebuild after refresh ordering fix
+# Rebuild after pull-to-refresh opt-in fix
 # Rebuild after compile fix
 
 on:
