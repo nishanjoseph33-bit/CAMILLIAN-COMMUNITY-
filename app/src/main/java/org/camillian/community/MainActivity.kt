@@ -35,6 +35,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -1202,11 +1203,26 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                 order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
             }.decodeList<NotificationItem>()
 
+            val sent = Supabase.client.from("friend_requests").select {
+                filter { filter("sender_id", FilterOperator.EQ, profile.id) }
+            }.decodeList<FriendRequest>()
+            val received = Supabase.client.from("friend_requests").select {
+                filter { filter("receiver_id", FilterOperator.EQ, profile.id) }
+            }.decodeList<FriendRequest>()
             val loaded = mutableMapOf<String, String>()
-            members.forEach { member ->
-                loaded[member.id] = Supabase.client.postgrest.rpc("get_friend_status", buildJsonObject {
-                    put("target_user_id", member.id)
-                }).decodeAs<String>()
+            sent.forEach { request ->
+                loaded[request.receiverId] = when (request.status) {
+                    "accepted" -> "friends"
+                    "pending" -> "outgoing"
+                    else -> "none"
+                }
+            }
+            received.forEach { request ->
+                loaded[request.senderId] = when (request.status) {
+                    "accepted" -> "friends"
+                    "pending" -> "incoming"
+                    else -> loaded[request.senderId] ?: "none"
+                }
             }
             statuses = loaded
         } catch (e: Exception) {
@@ -1291,7 +1307,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                                 }
                             }) { Text("Accept") }
                             TextButton(onClick = {
-                                CoroutineScope(Dispatchers.Main).launch {
+                                scope.launch {
                                     try {
                                         Supabase.client.postgrest.rpc("respond_friend_request", buildJsonObject {
                                             put("request_id", request.id)
