@@ -28,6 +28,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.storage.storage
+import io.github.jan.supabase.functions.functions
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -1144,6 +1145,9 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
 
 @Composable
 private fun AdminTools(profile: MemberProfile) {
+    var inviteEmail by remember { mutableStateOf("") }
+    var inviteMessage by remember { mutableStateOf("") }
+    var inviteSending by remember { mutableStateOf(false) }
     var inviteCode by remember { mutableStateOf("") }
     var announcement by remember { mutableStateOf("") }
     var eventTitle by remember { mutableStateOf("") }
@@ -1156,6 +1160,25 @@ private fun AdminTools(profile: MemberProfile) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Administration tools", style = MaterialTheme.typography.titleLarge)
+            Text("Invite a member by email", style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(inviteEmail, { inviteEmail = it }, Modifier.fillMaxWidth(), label = { Text("Member email") }, singleLine = true)
+            Button(enabled = !inviteSending && inviteEmail.contains("@"), onClick = {
+                scope.launch {
+                    inviteSending = true
+                    inviteMessage = ""
+                    try {
+                        Supabase.client.functions.invoke("admin-invite-member", buildJsonObject { put("email", inviteEmail.trim()) })
+                        inviteMessage = "Invitation email sent."
+                        inviteEmail = ""
+                    } catch (e: Exception) {
+                        inviteMessage = e.message ?: "Could not send invitation."
+                    } finally { inviteSending = false }
+                }
+            }) { Text(if (inviteSending) "Sending..." else "Send invitation") }
+            if (inviteMessage.isNotBlank()) Text(inviteMessage, color = MaterialTheme.colorScheme.primary)
+
+            HorizontalDivider()
+            Text("Legacy invitation code", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(inviteCode, { inviteCode = it }, Modifier.fillMaxWidth(), label = { Text("New invitation code") })
             Button(enabled = !busy && inviteCode.length >= 6, onClick = {
                 scope.launch {
@@ -1166,12 +1189,12 @@ private fun AdminTools(profile: MemberProfile) {
                             put("invite_description", "Camillian member invitation")
                             put("invite_max_uses", 1)
                         })
-                        message = "Invitation created."
+                        message = "Invitation code created."
                         inviteCode = ""
-                    } catch (e: Exception) { message = e.message ?: "Could not create invitation." }
+                    } catch (e: Exception) { message = e.message ?: "Could not create invitation code." }
                     finally { busy = false }
                 }
-            }) { Text("Create invitation") }
+            }) { Text("Create invitation code") }
 
             HorizontalDivider()
             OutlinedTextField(announcement, { announcement = it }, Modifier.fillMaxWidth(), minLines = 3, label = { Text("Announcement / news") })
