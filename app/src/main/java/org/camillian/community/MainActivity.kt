@@ -146,6 +146,7 @@ private fun AdminDashboard(profile: MemberProfile) {
     var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
     var message by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
+    var actionMemberId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun loadMembers() {
@@ -160,6 +161,29 @@ private fun AdminDashboard(profile: MemberProfile) {
                 message = e.message ?: "Could not load members."
             } finally {
                 loading = false
+            }
+        }
+    }
+
+
+    fun changeStatus(member: MemberProfile, newStatus: String) {
+        scope.launch {
+            actionMemberId = member.id
+            message = ""
+            try {
+                Supabase.client.postgrest.rpc(
+                    "admin_set_member_status",
+                    mapOf(
+                        "target_profile_id" to member.id,
+                        "new_status" to newStatus
+                    )
+                )
+                message = "Member status changed to $newStatus."
+                loadMembers()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not change member status."
+            } finally {
+                actionMemberId = null
             }
         }
     }
@@ -189,6 +213,27 @@ private fun AdminDashboard(profile: MemberProfile) {
                     Text(member.email ?: "")
                     Text("Role: ${member.memberRole}")
                     Text("Status: ${member.memberStatus}")
+                    Spacer(Modifier.height(10.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (member.memberStatus != "approved") {
+                            Button(
+                                onClick = { changeStatus(member, "approved") },
+                                enabled = actionMemberId == null
+                            ) { Text("Approve") }
+                        }
+                        if (member.memberStatus != "rejected") {
+                            OutlinedButton(
+                                onClick = { changeStatus(member, "rejected") },
+                                enabled = actionMemberId == null
+                            ) { Text("Reject") }
+                        }
+                        if (member.memberStatus != "suspended") {
+                            OutlinedButton(
+                                onClick = { changeStatus(member, "suspended") },
+                                enabled = actionMemberId == null
+                            ) { Text("Suspend") }
+                        }
+                    }
                 }
             }
         }
