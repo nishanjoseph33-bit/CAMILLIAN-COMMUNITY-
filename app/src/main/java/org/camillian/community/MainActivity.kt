@@ -1776,17 +1776,16 @@ private fun FriendsScreen(
     fun openFriendChat(memberId: String) {
         scope.launch {
             try {
-                Supabase.client.postgrest.rpc("ensure_friend_conversation", buildJsonObject { put("target_user_id", memberId) })
-                val mine = Supabase.client.from("conversation_members").select {
-                    filter { filter("user_id", FilterOperator.EQ, profile.id) }
-                }.decodeList<ConversationMember>()
-                val theirs = Supabase.client.from("conversation_members").select {
-                    filter { filter("user_id", FilterOperator.EQ, memberId) }
-                }.decodeList<ConversationMember>()
-                val common = mine.map { it.conversationId }.intersect(theirs.map { it.conversationId }.toSet())
-                val conversations = Supabase.client.from("conversations").select().decodeList<Conversation>()
-                val conversation = conversations.firstOrNull { it.id in common && !it.isGroup }
-                    ?: error("Could not open the private conversation.")
+                // The RPC creates (or reuses) the private chat and returns its conversation UUID.
+                // Use that UUID directly instead of searching all memberships/conversations.
+                val conversationId = Supabase.client.postgrest
+                    .rpc("ensure_friend_conversation", buildJsonObject { put("target_user_id", memberId) })
+                    .decodeSingle<String>()
+
+                val conversation = Supabase.client.from("conversations").select {
+                    filter { filter("id", FilterOperator.EQ, conversationId) }
+                }.decodeSingle<Conversation>()
+
                 onOpenChat(conversation)
             } catch (e: Exception) {
                 message = e.message ?: "Could not open the conversation."
