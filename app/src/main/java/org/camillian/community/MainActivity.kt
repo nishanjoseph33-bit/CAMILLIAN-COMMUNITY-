@@ -51,16 +51,20 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Supabase.client.handleDeeplinks(intent)
-        setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) { App() } } }
+        setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) { App(recoveryMode = intent?.dataString?.contains("type=recovery") == true) } } }
     }
 }
 
 @Composable
-private fun App() {
+private fun App(recoveryMode: Boolean = false) {
     var profile by remember { mutableStateOf<MemberProfile?>(null) }
     var message by remember { mutableStateOf("") }
 
     if (profile == null) {
+        if (recoveryMode) {
+            RecoveryPasswordScreen(onDone = { profile = null })
+            return
+        }
         LoginScreen(
             onApproved = { profile = it },
             onMessage = { message = it },
@@ -74,6 +78,50 @@ private fun App() {
                 Supabase.client.auth.signOut()
                 profile = null
             })
+        }
+    }
+}
+
+
+@Composable
+private fun RecoveryPasswordScreen(onDone: () -> Unit) {
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text("Set a new password", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text("New password") }, visualTransformation = PasswordVisualTransformation())
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(confirm, { confirm = it }, Modifier.fillMaxWidth(), label = { Text("Confirm password") }, visualTransformation = PasswordVisualTransformation())
+        Spacer(Modifier.height(16.dp))
+        Button(
+            enabled = !saving && password.length >= 6 && password == confirm,
+            onClick = {
+                scope.launch {
+                    saving = true
+                    try {
+                        Supabase.client.auth.updateUser { this.password = password }
+                        message = "Password updated. You can sign in with your new password."
+                        Supabase.client.auth.signOut()
+                        onDone()
+                    } catch (e: Exception) {
+                        message = e.message ?: "Could not update password."
+                    } finally { saving = false }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(if (saving) "Saving..." else "Update password") }
+        if (message.isNotBlank()) {
+            Spacer(Modifier.height(12.dp))
+            Text(message)
         }
     }
 }
