@@ -50,6 +50,7 @@ private data class MemberProfile(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Supabase.client.handleDeeplinks(intent)
         setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) { App() } } }
     }
 }
