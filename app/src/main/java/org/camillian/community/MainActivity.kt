@@ -2,8 +2,6 @@ package org.camillian.community
 
 import android.os.Bundle
 import android.net.Uri
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
@@ -59,6 +57,7 @@ class MainActivity : ComponentActivity() {
 private fun App(recoveryMode: Boolean = false) {
     var profile by remember { mutableStateOf<MemberProfile?>(null) }
     var message by remember { mutableStateOf("") }
+    val appScope = rememberCoroutineScope()
 
     if (profile == null) {
         if (recoveryMode) {
@@ -75,8 +74,10 @@ private fun App(recoveryMode: Boolean = false) {
             AdminDashboard(profile!!)
         } else {
             CommunityShell(profile!!, onLogout = {
-                Supabase.client.auth.signOut()
-                profile = null
+                appScope.launch {
+                    Supabase.client.auth.signOut()
+                    profile = null
+                }
             })
         }
     }
@@ -275,7 +276,7 @@ private fun RecoveryDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
                 scope.launch {
                     busy = true
                     try {
-                        Supabase.client.auth.sendRecoveryEmail(email.trim())
+                        Supabase.client.auth.resetPasswordForEmail(email.trim(), redirectUrl = "camillian://auth")
                         onMessage("Password reset email sent. Check your email.")
                         onDismiss()
                     } catch (e: Exception) {
