@@ -146,6 +146,8 @@ private fun HomeScreen(profile: MemberProfile) {
     var posting by remember { mutableStateOf(false) }
     var reactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var reactionCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var commentsByPost by remember { mutableStateOf<Map<String, List<CommentRow>>>(emptyMap()) }
+    var commentDrafts by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     val scope = rememberCoroutineScope()
 
     fun loadFeed() {
@@ -202,6 +204,38 @@ private fun HomeScreen(profile: MemberProfile) {
                 loadReactions()
             } catch (e: Exception) {
                 message = e.message ?: "Could not update the reaction."
+            }
+        }
+    }
+
+    fun loadComments(postId: String) {
+        scope.launch {
+            try {
+                val comments = Supabase.client.from("comments").select {
+                    filter { filter("post_id", FilterOperator.EQ, postId) }
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+                }.decodeList<CommentRow>()
+                commentsByPost = commentsByPost + (postId to comments)
+            } catch (e: Exception) {
+                message = e.message ?: "Could not load comments."
+            }
+        }
+    }
+
+    fun addComment(postId: String) {
+        val text = commentDrafts[postId]?.trim().orEmpty()
+        if (text.isEmpty()) return
+        scope.launch {
+            try {
+                Supabase.client.from("comments").insert(buildJsonObject {
+                    put("post_id", postId)
+                    put("author_id", profile.id)
+                    put("text_content", text)
+                })
+                commentDrafts = commentDrafts - postId
+                loadComments(postId)
+            } catch (e: Exception) {
+                message = e.message ?: "Could not add comment."
             }
         }
     }
@@ -300,6 +334,30 @@ private fun HomeScreen(profile: MemberProfile) {
                                     Text(if (reactionIds.contains(post.id)) "♥ Liked" else "♡ Like")
                                 }
                                 Text(reactionCounts[post.id]?.toString() ?: "0")
+                                Spacer(Modifier.width(12.dp))
+                                TextButton(onClick = { loadComments(post.id) }) {
+                                    Text("Comments")
+                                }
+                            }
+                            commentsByPost[post.id]?.forEach { comment ->
+                                Column(Modifier.padding(vertical = 3.dp)) {
+                                    Text("Member ${comment.authorId.take(8)}", style = MaterialTheme.typography.labelMedium)
+                                    Text(comment.textContent)
+                                }
+                            }
+                            OutlinedTextField(
+                                value = commentDrafts[post.id].orEmpty(),
+                                onValueChange = { commentDrafts = commentDrafts + (post.id to it) },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = { Text("Write a comment...") },
+                                singleLine = true,
+                                trailingIcon = {
+                                    TextButton(
+                                        onClick = { addComment(post.id) },
+                                        enabled = commentDrafts[post.id].orEmpty().isNotBlank()
+                                    ) { Text("Send") }
+                                }
+                            )
                             }
                         }
                     }
@@ -308,6 +366,15 @@ private fun HomeScreen(profile: MemberProfile) {
         }
     }
 }
+
+@Serializable
+private data class CommentRow(
+    val id: String,
+    @SerialName("post_id") val postId: String,
+    @SerialName("author_id") val authorId: String,
+    @SerialName("text_content") val textContent: String,
+    @SerialName("created_at") val createdAt: String? = null
+)
 
 @Serializable
 private data class PostReaction(
