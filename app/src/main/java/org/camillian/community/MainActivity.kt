@@ -13,6 +13,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -49,7 +52,7 @@ private data class MemberProfile(
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MaterialTheme { Surface(Modifier.fillMaxSize()) { App(recoveryMode = intent?.dataString?.contains("type=recovery") == true) } } }
+        setContent { MaterialTheme { Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) { App(recoveryMode = intent?.dataString?.contains("type=recovery") == true) } } }
     }
 }
 
@@ -61,28 +64,49 @@ private fun App(recoveryMode: Boolean = false) {
 
     if (profile == null) {
         if (recoveryMode) {
-            RecoveryPasswordScreen(onDone = { profile = null })
+            AppBackground { RecoveryPasswordScreen(onDone = { profile = null }) }
             return
         }
-        LoginScreen(
-            onApproved = { profile = it },
-            onMessage = { message = it },
-            initialMessage = message
-        )
+        AppBackground {
+            LoginScreen(
+                onApproved = { profile = it },
+                onMessage = { message = it },
+                initialMessage = message
+            )
+        }
     } else {
         if (profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin") {
-            AdminDashboard(profile!!)
+            AppBackground { AdminDashboard(profile!!) }
         } else {
-            CommunityShell(profile!!, onProfileUpdated = { updated -> profile = updated }, onLogout = {
-                appScope.launch {
-                    Supabase.client.auth.signOut()
-                    profile = null
-                }
-            })
+            AppBackground {
+                CommunityShell(profile!!, onProfileUpdated = { updated -> profile = updated }, onLogout = {
+                    appScope.launch {
+                        Supabase.client.auth.signOut()
+                        profile = null
+                    }
+                })
+            }
         }
     }
 }
 
+
+@Composable
+private fun AppBackground(content: @Composable () -> Unit) {
+    Box(Modifier.fillMaxSize()) {
+        Image(
+            painter = painterResource(id = R.drawable.camillian_background),
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = Color.Black.copy(alpha = 0.22f)
+        ) {}
+        content()
+    }
+}
 
 @Composable
 private fun RecoveryPasswordScreen(onDone: () -> Unit) {
@@ -146,6 +170,13 @@ private fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.camillian_logo),
+            contentDescription = "Camillian logo",
+            modifier = Modifier.size(120.dp),
+            contentScale = ContentScale.Fit
+        )
+        Spacer(Modifier.height(12.dp))
         Text("Camillian Community", style = MaterialTheme.typography.headlineMedium)
         Text("Members only")
         Spacer(Modifier.height(28.dp))
