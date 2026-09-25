@@ -144,6 +144,8 @@ private fun HomeScreen(profile: MemberProfile) {
     var message by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(true) }
     var posting by remember { mutableStateOf(false) }
+    var reactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var reactionCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     val scope = rememberCoroutineScope()
 
     fun loadFeed() {
@@ -162,6 +164,48 @@ private fun HomeScreen(profile: MemberProfile) {
         }
     }
 
+    fun loadReactions() {
+        scope.launch {
+            try {
+                val reactions = Supabase.client.from("post_reactions").select {
+                    filter { filter("reaction", FilterOperator.EQ, "like") }
+                }.decodeList<PostReaction>()
+                reactionIds = reactions.filter { it.userId == profile.id }.map { it.postId }.toSet()
+                reactionCounts = reactions.groupingBy { it.postId }.eachCount()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not load reactions."
+            }
+        }
+    }
+
+    fun toggleLike(postId: String) {
+        scope.launch {
+            try {
+                val existing = Supabase.client.from("post_reactions").select {
+                    filter { filter("post_id", FilterOperator.EQ, postId) }
+                    filter { filter("user_id", FilterOperator.EQ, profile.id) }
+                    filter { filter("reaction", FilterOperator.EQ, "like") }
+                }.decodeList<PostReaction>()
+                if (existing.isNotEmpty()) {
+                    existing.forEach { reaction ->
+                        Supabase.client.from("post_reactions").delete {
+                            filter { filter("id", FilterOperator.EQ, reaction.id) }
+                        }
+                    }
+                } else {
+                    Supabase.client.from("post_reactions").insert(buildJsonObject {
+                        put("post_id", postId)
+                        put("user_id", profile.id)
+                        put("reaction", "like")
+                    })
+                }
+                loadReactions()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not update the reaction."
+            }
+        }
+    }
+
     fun createPost() {
         val text = composer.trim()
         if (text.isEmpty()) return
@@ -171,7 +215,7 @@ private fun HomeScreen(profile: MemberProfile) {
                 Supabase.client.from("posts").insert(buildJsonObject {
                     put("author_id", profile.id)
                     put("kind", "text")
-                    put("content", text)
+                    put("text_content", text)
                 })
                 composer = ""
                 loadFeed()
@@ -183,7 +227,10 @@ private fun HomeScreen(profile: MemberProfile) {
         }
     }
 
-    LaunchedEffect(Unit) { loadFeed() }
+    LaunchedEffect(Unit) {
+        loadFeed()
+        loadReactions()
+    }
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -247,6 +294,13 @@ private fun HomeScreen(profile: MemberProfile) {
                             if (!post.content.isNullOrBlank()) Text(post.content)
                             Spacer(Modifier.height(8.dp))
                             Text(post.createdAt ?: "", style = MaterialTheme.typography.bodySmall)
+                            Spacer(Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(onClick = { toggleLike(post.id) }) {
+                                    Text(if (reactionIds.contains(post.id)) "♥ Liked" else "♡ Like")
+                                }
+                                Text(reactionCounts[post.id]?.toString() ?: "0")
+                            }
                         }
                     }
                 }
@@ -256,11 +310,21 @@ private fun HomeScreen(profile: MemberProfile) {
 }
 
 @Serializable
+private data class PostReaction(
+    val id: String,
+    @SerialName("post_id") val postId: String,
+    @SerialName("user_id") val userId: String,
+    val reaction: String = "like"
+)
+
+@Serializable
 private data class FeedPost(
     val id: String,
     @SerialName("author_id") val authorId: String,
     val content: String? = null,
     @SerialName("kind") val kind: String = "text",
+    @SerialName("text_content") val textContent: String? = null,
+    @SerialName("media_url") val mediaUrl: String? = null,
     @SerialName("created_at") val createdAt: String? = null
 )
 @Composable
