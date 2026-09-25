@@ -2,6 +2,7 @@ name: Build Android APK
 # Build verification trigger
 # Social features build verification
 # Rebuild after pull-to-refresh opt-in fix
+# Verify message page navigation and two-way chat
 # Rebuild after compile fix
 
 on:
