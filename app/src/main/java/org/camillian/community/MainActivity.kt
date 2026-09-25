@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -137,15 +139,130 @@ private fun LoginScreen(
 
 @Composable
 private fun HomeScreen(profile: MemberProfile) {
-    Column(Modifier.fillMaxSize().padding(24.dp)) {
-        Text("Camillian Community", style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(12.dp))
-        Text("Welcome, ${profile.fullName ?: profile.email ?: "Member"}")
-        Spacer(Modifier.height(24.dp))
-        Text("Home feed will be connected here next.")
+    var posts by remember { mutableStateOf<List<FeedPost>>(emptyList()) }
+    var composer by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(true) }
+    var posting by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    fun loadFeed() {
+        scope.launch {
+            loading = true
+            try {
+                posts = Supabase.client.from("posts").select {
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }.decodeList<FeedPost>()
+                message = ""
+            } catch (e: Exception) {
+                message = e.message ?: "Could not load the community feed."
+            } finally {
+                loading = false
+            }
+        }
+    }
+
+    fun createPost() {
+        val text = composer.trim()
+        if (text.isEmpty()) return
+        scope.launch {
+            posting = true
+            try {
+                Supabase.client.from("posts").insert(buildJsonObject {
+                    put("author_id", profile.id)
+                    put("kind", "text")
+                    put("content", text)
+                })
+                composer = ""
+                loadFeed()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not publish your post."
+            } finally {
+                posting = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) { loadFeed() }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text("Camillian Community", style = MaterialTheme.typography.headlineSmall)
+                Text("Welcome, ${profile.fullName ?: profile.email ?: "Member"}")
+            }
+            TextButton(onClick = { loadFeed() }) { Text("Refresh") }
+        }
+        Card(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
+            Column(Modifier.padding(16.dp)) {
+                Text("Share with the community", style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = composer,
+                    onValueChange = { composer = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Write a reflection, news update, or message...") },
+                    minLines = 3
+                )
+                Spacer(Modifier.height(8.dp))
+                Button(onClick = { createPost() }, enabled = !posting && composer.isNotBlank(), modifier = Modifier.align(Alignment.End)) {
+                    Text(if (posting) "Publishing..." else "Publish")
+                }
+            }
+        }
+        if (message.isNotBlank()) Text(message, modifier = Modifier.padding(20.dp), color = MaterialTheme.colorScheme.error)
+        if (loading) {
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
+        } else if (posts.isEmpty()) {
+            Box(Modifier.fillMaxSize().padding(32.dp), contentAlignment = Alignment.Center) {
+                Text("No posts yet. Be the first to share with the community.")
+            }
+        } else {
+            LazyColumn(
+                Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(posts, key = { it.id }) { post ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(
+                                when (post.kind) {
+                                    "news" -> "Camillian News"
+                                    "announcement" -> "Announcement"
+                                    "scripture" -> "Scripture"
+                                    "reflection" -> "Reflection"
+                                    else -> "Community Post"
+                                },
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text("Member ${post.authorId.take(8)}", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(8.dp))
+                            if (!post.content.isNullOrBlank()) Text(post.content)
+                            Spacer(Modifier.height(8.dp))
+                            Text(post.createdAt ?: "", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
+@Serializable
+private data class FeedPost(
+    val id: String,
+    @SerialName("author_id") val authorId: String,
+    val content: String? = null,
+    @SerialName("kind") val kind: String = "text",
+    @SerialName("created_at") val createdAt: String? = null
+)
 @Composable
 private fun AdminDashboard(profile: MemberProfile) {
     var status by remember { mutableStateOf("pending") }
