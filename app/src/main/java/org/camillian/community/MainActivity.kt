@@ -162,11 +162,13 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
     var language by remember { mutableStateOf("English") }
     var profile by remember { mutableStateOf<MemberProfile?>(null) }
     var message by remember { mutableStateOf("") }
+    var inviteModeActive by remember { mutableStateOf(inviteMode) }
+    var recoveryModeActive by remember { mutableStateOf(recoveryMode) }
     val appScope = rememberCoroutineScope()
 
     val destination = when {
-        recoveryMode -> "recovery"
-        inviteMode -> "invite"
+        recoveryModeActive -> "recovery"
+        inviteModeActive -> "invite"
         profile == null -> "login"
         profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin" -> "admin"
         else -> "home"
@@ -184,8 +186,20 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
         ) { screen ->
             Box(Modifier.fillMaxSize()) {
                 when (screen) {
-                    "recovery" -> RecoveryPasswordScreen(language = language, onDone = { profile = null })
-                    "invite" -> InvitePasswordScreen(language = language, onDone = { profile = null })
+                    "recovery" -> RecoveryPasswordScreen(
+                        language = language,
+                        onDone = {
+                            recoveryModeActive = false
+                            profile = null
+                        }
+                    )
+                    "invite" -> InvitePasswordScreen(
+                        language = language,
+                        onDone = {
+                            inviteModeActive = false
+                            profile = null
+                        }
+                    )
                     "login" -> LoginScreen(language = language, onLanguageChange = { language = it }, onApproved = { profile = it }, onMessage = { message = it }, initialMessage = message)
                     "admin" -> AdminDashboard(profile!!, language = language, onLanguageChange = { language = it }, onLogout = {
                         appScope.launch {
@@ -1467,6 +1481,7 @@ private fun localized(key: String, language: String): String {
         "Email" to mapOf("Italiano" to "Email", "Español" to "Correo electrónico", "Português" to "Email", "Français" to "E-mail", "Deutsch" to "E-Mail", "Tiếng Việt" to "Email", "Filipino" to "Email"),
         "Password" to mapOf("Italiano" to "Password", "Español" to "Contraseña", "Português" to "Palavra-passe", "Français" to "Mot de passe", "Deutsch" to "Passwort", "Tiếng Việt" to "Mật khẩu", "Filipino" to "Password"),
         "Registering..." to mapOf("Italiano" to "Registrazione...", "Español" to "Registrando...", "Português" to "A registar...", "Français" to "Inscription...", "Deutsch" to "Registrieren...", "Tiếng Việt" to "Đang đăng ký...", "Filipino" to "Nagrerehistro..."),
+        "Invitation/access email sent. You can send it again using the same email." to mapOf("Italiano" to "Email di invito/accesso inviata. Puoi inviarla di nuovo usando la stessa email.", "Español" to "Correo de invitación/acceso enviado. Puedes enviarlo de nuevo usando el mismo correo.", "Português" to "Email de convite/acesso enviado. Pode enviá-lo novamente usando o mesmo email.", "Français" to "E-mail d’invitation/d’accès envoyé. Vous pouvez le renvoyer avec le même e-mail.", "Deutsch" to "Einladungs-/Zugangs-E-Mail gesendet. Du kannst sie mit derselben E-Mail erneut senden.", "Tiếng Việt" to "Đã gửi email lời mời/truy cập. Bạn có thể gửi lại bằng cùng email.", "Filipino" to "Naipadala ang invitation/access email. Maaari mo itong ipadala muli gamit ang parehong email."),
         "Sending..." to mapOf("Italiano" to "Invio...", "Español" to "Enviando...", "Português" to "A enviar...", "Français" to "Envoi...", "Deutsch" to "Senden...", "Tiếng Việt" to "Đang gửi...", "Filipino" to "Ipinapadala..."),
         "Edit" to mapOf("Italiano" to "Modifica", "Español" to "Editar", "Português" to "Editar", "Français" to "Modifier", "Deutsch" to "Bearbeiten", "Tiếng Việt" to "Chỉnh sửa", "Filipino" to "I-edit"),
         "Edit post" to mapOf("Italiano" to "Modifica post", "Español" to "Editar publicación", "Português" to "Editar publicação", "Français" to "Modifier la publication", "Deutsch" to "Beitrag bearbeiten", "Tiếng Việt" to "Chỉnh sửa bài đăng", "Filipino" to "I-edit ang post"),
