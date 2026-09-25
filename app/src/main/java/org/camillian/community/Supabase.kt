@@ -10,7 +10,11 @@ object Supabase {
         supabaseUrl = BuildConfig.SUPABASE_URL,
         supabaseKey = BuildConfig.SUPABASE_PUBLISHABLE_KEY
     ) {
-        install(Auth)
+        install(Auth) {
+            flowType = io.github.jan.supabase.auth.FlowType.PKCE
+            scheme = "camillian"
+            host = "auth"
+        }
         install(Postgrest)
         install(Storage)
     }
