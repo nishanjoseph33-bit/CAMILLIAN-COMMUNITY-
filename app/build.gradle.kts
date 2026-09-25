@@ -2,6 +2,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 android {
@@ -16,8 +17,8 @@ android {
         val localProperties = project.rootProject.file("local.properties")
         val properties = java.util.Properties()
         if (localProperties.exists()) localProperties.inputStream().use { properties.load(it) }
-        buildConfigField("String", "SUPABASE_URL", "\"" + properties.getProperty("SUPABASE_URL", "") + "\"")
-        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"" + properties.getProperty("SUPABASE_PUBLISHABLE_KEY", "") + "\"")
+        buildConfigField("String", "SUPABASE_URL", """ + properties.getProperty("SUPABASE_URL", "") + """)
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", """ + properties.getProperty("SUPABASE_PUBLISHABLE_KEY", "") + """)
     }
     buildFeatures { compose = true; buildConfig = true }
 }
@@ -32,5 +33,6 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:auth-kt:3.5.0")
     implementation("io.github.jan-tennert.supabase:postgrest-kt:3.5.0")
     implementation("io.ktor:ktor-client-android:3.0.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
