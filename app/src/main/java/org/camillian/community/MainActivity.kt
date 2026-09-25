@@ -37,7 +37,6 @@ import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1244,15 +1243,6 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                 isRefreshing = refreshing,
                 onRefresh = { refreshHome() },
                 modifier = Modifier.fillMaxSize(),
-                indicator = {
-                    PullToRefreshDefaults.Indicator(
-                        state = rememberPullToRefreshState(),
-                        isRefreshing = refreshing,
-                        modifier = Modifier.align(Alignment.TopCenter),
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
             ) {
                 LazyColumn(
                     Modifier.fillMaxSize(),
