@@ -400,6 +400,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     var reactionCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var reactingPostId by remember { mutableStateOf<String?>(null) }
     var commentPostId by remember { mutableStateOf<String?>(null) }
+    var showComposer by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
@@ -559,34 +560,52 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                 Text("Camillian Community", style = MaterialTheme.typography.headlineSmall)
                 Text("Welcome, " + (profile.fullName ?: profile.email ?: "Member"))
             }
-            TextButton(onClick = { loadFeed() }) { Text("Refresh") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = { showComposer = !showComposer }) {
+                    Text(if (showComposer) "×" else "+")
+                }
+                TextButton(onClick = { loadFeed() }) { Text("Refresh") }
+            }
         }
 
-        Card(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
-            Column(Modifier.padding(16.dp)) {
-                Text("Share with the community", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                if (mediaUri != null) {
-                    Text("Selected " + (mediaKind ?: "media"))
-                    TextButton(onClick = { mediaUri = null; mediaKind = null }) { Text("Remove") }
+        if (showComposer) {
+            Card(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp)) {
+                Column(Modifier.padding(16.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text("Share with the community", style = MaterialTheme.typography.titleMedium)
+                        TextButton(onClick = {
+                            showComposer = false
+                            mediaUri = null
+                            mediaKind = null
+                        }) { Text("Close") }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    if (mediaUri != null) {
+                        Text("Selected " + (mediaKind ?: "media"))
+                        TextButton(onClick = { mediaUri = null; mediaKind = null }) { Text("Remove") }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text("Photo") }
+                        OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text("Video") }
+                    }
+                    OutlinedTextField(
+                        value = composer,
+                        onValueChange = { composer = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Write a reflection, news update, or message...") },
+                        minLines = 3
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = { createPost() },
+                        enabled = !posting && (composer.isNotBlank() || mediaUri != null),
+                        modifier = Modifier.align(Alignment.End)
+                    ) { Text(if (posting) "Publishing..." else "Publish") }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text("Photo") }
-                    OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text("Video") }
-                }
-                OutlinedTextField(
-                    value = composer,
-                    onValueChange = { composer = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Write a reflection, news update, or message...") },
-                    minLines = 3
-                )
-                Spacer(Modifier.height(8.dp))
-                Button(
-                    onClick = { createPost() },
-                    enabled = !posting && (composer.isNotBlank() || mediaUri != null),
-                    modifier = Modifier.align(Alignment.End)
-                ) { Text(if (posting) "Publishing..." else "Publish") }
             }
         }
 
