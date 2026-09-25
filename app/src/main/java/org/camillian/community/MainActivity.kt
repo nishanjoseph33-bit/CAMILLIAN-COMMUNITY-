@@ -413,8 +413,8 @@ private fun HomeScreen(profile: MemberProfile) {
                         ?: error("Could not read selected media.")
                     val extension = if (mediaKind == "video") "mp4" else "jpg"
                     val path = "posts/" + profile.id + "/" + System.currentTimeMillis() + "." + extension
-                    Supabase.client.storage["camillian-media"].upload(path, bytes, upsert = false)
-                    mediaUrl = Supabase.client.storage["camillian-media"].publicUrl(path)
+                    Supabase.client.storage.from("camillian-media").upload(path = path, data = bytes, upsert = false)
+                    mediaUrl = Supabase.client.storage.from("camillian-media").publicUrl(path)
                 }
                 Supabase.client.from("posts").insert(buildJsonObject {
                     put("author_id", profile.id)
