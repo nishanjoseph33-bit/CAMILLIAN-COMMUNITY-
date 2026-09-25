@@ -73,7 +73,7 @@ private fun App(recoveryMode: Boolean = false) {
         if (profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin") {
             AdminDashboard(profile!!)
         } else {
-            CommunityShell(profile!!, onLogout = {
+            CommunityShell(profile!!, onProfileUpdated = { updated -> profile = updated }, onLogout = {
                 appScope.launch {
                     Supabase.client.auth.signOut()
                     profile = null
@@ -638,7 +638,7 @@ private fun localized(key: String, language: String): String {
 }
 
 @Composable
-private fun CommunityShell(profile: MemberProfile, onLogout: () -> Unit) {
+private fun CommunityShell(profile: MemberProfile, onProfileUpdated: (MemberProfile) -> Unit, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("Home") }
     var language by remember { mutableStateOf("English") }
     Scaffold(
@@ -661,7 +661,7 @@ private fun CommunityShell(profile: MemberProfile, onLogout: () -> Unit) {
                 "Events" -> EventsScreen()
                 "Communities" -> CommunitiesScreen()
                 "Messages" -> MessagesScreen(profile)
-                "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = { language = it })
+                "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = { language = it }, onProfileUpdated = onProfileUpdated)
             }
         }
     }
@@ -915,7 +915,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, onBac
 }
 
 @Composable
-private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language: String = "English", onLanguageChange: (String) -> Unit = {}) {
+private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language: String = "English", onLanguageChange: (String) -> Unit = {}, onProfileUpdated: (MemberProfile) -> Unit = {}) {
     var fullName by remember { mutableStateOf(profile.fullName.orEmpty()) }
     var religiousName by remember { mutableStateOf(profile.religiousName.orEmpty()) }
     var phone by remember { mutableStateOf(profile.phone.orEmpty()) }
@@ -969,7 +969,13 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                                 }) {
                                     filter { filter("id", FilterOperator.EQ, profile.id) }
                                 }
-                                message = "Profile saved."
+
+                                val updatedProfile = Supabase.client.from("profiles").select {
+                                    filter { filter("id", FilterOperator.EQ, profile.id) }
+                                }.decodeSingle<MemberProfile>()
+
+                                onProfileUpdated(updatedProfile)
+                                message = "Profile saved successfully."
                             } catch (e: Exception) {
                                 message = e.message ?: "Could not save profile."
                             } finally {
