@@ -129,7 +129,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if (intent.dataString?.contains("type=recovery") == true || intent.dataString?.contains("type=invite") == true) {
+        if (intent.dataString?.contains("type=recovery") == true || intent.dataString?.contains("type=invite") == true || intent.dataString?.contains("type=confirm") == true) {
             recreate()
         }
     }
@@ -739,7 +739,7 @@ private fun RegisterDialog(language: String = "English", onDismiss: () -> Unit, 
                     try {
                         val valid = Supabase.client.postgrest.rpc("check_invite_code", buildJsonObject { put("invite_code", invite) }).decodeSingle<InviteCheck>().valid
                         if (!valid) error("Invalid or expired invitation code.")
-                        Supabase.client.auth.signUpWith(Email) {
+                        Supabase.client.auth.signUpWith(Email, redirectUrl = "camillian://auth?type=confirm") {
                             this.email = email.trim()
                             this.password = password
                             data = buildJsonObject { put("full_name", name.trim()) }
@@ -771,7 +771,7 @@ private fun RecoveryDialog(language: String = "English", onDismiss: () -> Unit, 
                 scope.launch {
                     busy = true
                     try {
-                        Supabase.client.auth.resetPasswordForEmail(email.trim(), redirectUrl = "camillian://auth")
+                        Supabase.client.auth.resetPasswordForEmail(email.trim(), redirectUrl = "camillian://auth?type=recovery")
                         onMessage("Password reset email sent. Check your email.")
                         onDismiss()
                     } catch (e: Exception) {
