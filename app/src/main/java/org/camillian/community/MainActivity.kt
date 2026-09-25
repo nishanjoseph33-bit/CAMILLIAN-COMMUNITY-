@@ -1691,6 +1691,19 @@ private fun localized(key: String, language: String): String {
 private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf("Home") }
     var messageConversation by remember { mutableStateOf<Conversation?>(null) }
+    var activeChat by remember { mutableStateOf<Conversation?>(null) }
+
+    // Open a private chat directly from Find Friends. This avoids routing through the
+    // Messages tab, so the chat cannot be lost during AnimatedContent recomposition.
+    if (activeChat != null) {
+        ChatScreen(
+            profile = profile,
+            conversation = activeChat!!,
+            language = language,
+            onBack = { activeChat = null }
+        )
+        return
+    }
 
     Scaffold(
         bottomBar = {
@@ -1729,8 +1742,7 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                 when (currentTab) {
                     "Home" -> HomeScreen(profile, language)
                     "Friends" -> FriendsScreen(profile, language, onOpenChat = { conversation ->
-                        messageConversation = conversation
-                        tab = "Messages"
+                        activeChat = conversation
                     })
                     "Events" -> EventsScreen(language)
                     "Communities" -> CommunitiesScreen(language)
