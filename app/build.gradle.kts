@@ -48,6 +48,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:auth-kt:3.5.0")
     implementation("io.github.jan-tennert.supabase:postgrest-kt:3.5.0")
     implementation("io.github.jan-tennert.supabase:storage-kt:3.5.0")
+    implementation("io.coil-kt:coil-compose:2.7.0")
     implementation("io.ktor:ktor-client-android:3.0.3")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
     debugImplementation("androidx.compose.ui:ui-tooling")
