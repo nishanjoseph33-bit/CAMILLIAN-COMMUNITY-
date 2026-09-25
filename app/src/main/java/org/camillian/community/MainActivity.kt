@@ -1412,6 +1412,38 @@ private fun localized(key: String, language: String): String {
         "Send" to mapOf("Italiano" to "Invia", "Español" to "Enviar", "Português" to "Enviar", "Français" to "Envoyer", "Deutsch" to "Senden", "Tiếng Việt" to "Gửi", "Filipino" to "Ipadala"),
         "Save profile" to mapOf("Italiano" to "Salva profilo", "Español" to "Guardar perfil", "Português" to "Guardar perfil", "Français" to "Enregistrer le profil", "Deutsch" to "Profil speichern", "Tiếng Việt" to "Lưu hồ sơ", "Filipino" to "I-save ang profile"),
         "Sign out" to mapOf("Italiano" to "Esci", "Español" to "Cerrar sesión", "Português" to "Terminar sessão", "Français" to "Se déconnecter", "Deutsch" to "Abmelden", "Tiếng Việt" to "Đăng xuất", "Filipino" to "Mag-sign out"),
+        "Find and connect with Camillian members." to mapOf("Italiano" to "Trova e connettiti con i membri camilliani.", "Español" to "Encuentra y conecta con miembros camilianos.", "Português" to "Encontre e conecte-se com membros camilianos.", "Français" to "Trouvez et connectez-vous avec les membres camilliens.", "Deutsch" to "Finde und verbinde dich mit Camillianischen Mitgliedern.", "Tiếng Việt" to "Tìm và kết nối với các thành viên Camillian.", "Filipino" to "Maghanap at kumonekta sa mga miyembro ng Camillian."),
+        "Notifications" to mapOf("Italiano" to "Notifiche", "Español" to "Notificaciones", "Português" to "Notificações", "Français" to "Notifications", "Deutsch" to "Benachrichtigungen", "Tiếng Việt" to "Thông báo", "Filipino" to "Mga abiso"),
+        "No notifications yet." to mapOf("Italiano" to "Nessuna notifica.", "Español" to "Aún no hay notificaciones.", "Português" to "Ainda não há notificações.", "Français" to "Aucune notification.", "Deutsch" to "Noch keine Benachrichtigungen.", "Tiếng Việt" to "Chưa có thông báo.", "Filipino" to "Wala pang mga abiso."),
+        "Mark all as read" to mapOf("Italiano" to "Segna tutto come letto", "Español" to "Marcar todo como leído", "Português" to "Marcar tudo como lido", "Français" to "Tout marquer comme lu", "Deutsch" to "Alle als gelesen markieren", "Tiếng Việt" to "Đánh dấu tất cả đã đọc", "Filipino" to "Markahan lahat bilang nabasa"),
+        "Friend Requests" to mapOf("Italiano" to "Richieste di amicizia", "Español" to "Solicitudes de amistad", "Português" to "Pedidos de amizade", "Français" to "Demandes d’amitié", "Deutsch" to "Freundschaftsanfragen", "Tiếng Việt" to "Lời mời kết bạn", "Filipino" to "Mga kahilingan sa kaibigan"),
+        "New friend request" to mapOf("Italiano" to "Nuova richiesta di amicizia", "Español" to "Nueva solicitud de amistad", "Português" to "Novo pedido de amizade", "Français" to "Nouvelle demande d’amitié", "Deutsch" to "Neue Freundschaftsanfrage", "Tiếng Việt" to "Lời mời kết bạn mới", "Filipino" to "Bagong friend request"),
+        "Accept" to mapOf("Italiano" to "Accetta", "Español" to "Aceptar", "Português" to "Aceitar", "Français" to "Accepter", "Deutsch" to "Annehmen", "Tiếng Việt" to "Chấp nhận", "Filipino" to "Tanggapin"),
+        "Decline" to mapOf("Italiano" to "Rifiuta", "Español" to "Rechazar", "Português" to "Recusar", "Français" to "Refusar", "Deutsch" to "Ablehnen", "Tiếng Việt" to "Từ chối", "Filipino" to "Tanggihan"),
+        "Search by name, province, community or ministry" to mapOf("Italiano" to "Cerca per nome, provincia, comunità o ministero", "Español" to "Buscar por nombre, provincia, comunidad o ministerio", "Português" to "Pesquisar por nome, província, comunidade ou ministério", "Français" to "Rechercher par nom, province, communauté ou ministère", "Deutsch" to "Nach Name, Provinz, Gemeinschaft oder Dienst suchen", "Tiếng Việt" to "Tìm theo tên, tỉnh dòng, cộng đoàn hoặc sứ vụ", "Filipino" to "Maghanap ayon sa pangalan, probinsya, komunidad o ministeryo"),
+        "No other approved members found." to mapOf("Italiano" to "Nessun altro membro approvato trovato.", "Español" to "No se encontraron otros miembros aprobados.", "Português" to "Nenhum outro membro aprovado encontrado.", "Français" to "Aucun autre membre approuvé trouvé.", "Deutsch" to "Keine weiteren genehmigten Mitglieder gefunden.", "Tiếng Việt" to "Không tìm thấy thành viên nào khác đã được phê duyệt.", "Filipino" to "Walang ibang aprubadong miyembro."),
+        "No members match your search." to mapOf("Italiano" to "Nessun membro corrisponde alla ricerca.", "Español" to "Ningún miembro coincide con la búsqueda.", "Português" to "Nenhum membro corresponde à pesquisa.", "Français" to "Aucun membre ne correspond à la recherche.", "Deutsch" to "Keine Mitglieder entsprechen der Suche.", "Tiếng Việt" to "Không có thành viên phù hợp với tìm kiếm.", "Filipino" to "Walang miyembrong tumutugma sa paghahanap."),
+        "Request sent" to mapOf("Italiano" to "Richiesta inviata", "Español" to "Solicitud enviada", "Português" to "Pedido enviado", "Français" to "Demande envoyée", "Deutsch" to "Anfrage gesendet", "Tiếng Việt" to "Đã gửi lời mời", "Filipino" to "Naipadala ang kahilingan"),
+        "This member sent you a request" to mapOf("Italiano" to "Questo membro ti ha inviato una richiesta", "Español" to "Este miembro te envió una solicitud", "Português" to "Este membro enviou-lhe um pedido", "Français" to "Ce membre vous a envoyé une demande", "Deutsch" to "Dieses Mitglied hat dir eine Anfrage gesendet", "Tiếng Việt" to "Thành viên này đã gửi lời mời cho bạn", "Filipino" to "Nagpadala sa iyo ng kahilingan ang miyembrong ito"),
+        "Add Friend" to mapOf("Italiano" to "Aggiungi amico", "Español" to "Añadir amigo", "Português" to "Adicionar amigo", "Français" to "Ajouter un ami", "Deutsch" to "Freund hinzufügen", "Tiếng Việt" to "Thêm bạn", "Filipino" to "Magdagdag ng kaibigan"),
+        "Retreats, conferences, chapters, feast days and community events." to mapOf("Italiano" to "Ritiri, conferenze, capitoli, feste e eventi comunitari.", "Español" to "Retiros, conferencias, capítulos, fiestas y eventos comunitarios.", "Português" to "Retiros, conferências, capítulos, festas e eventos comunitários.", "Français" to "Retraites, conférences, chapitres, fêtes et événements communautaires.", "Deutsch" to "Exerzitien, Konferenzen, Kapitel, Festtage und Gemeinschaftsveranstaltungen.", "Tiếng Việt" to "Tĩnh tâm, hội nghị, tổng hội, lễ kính và sự kiện cộng đoàn.", "Filipino" to "Mga retreat, kumperensya, kapitulo, kapistahan at mga kaganapan ng komunidad."),
+        "No events have been published yet." to mapOf("Italiano" to "Non sono ancora stati pubblicati eventi.", "Español" to "Aún no se han publicado eventos.", "Português" to "Ainda não foram publicados eventos.", "Français" to "Aucun événement n’a encore été publié.", "Deutsch" to "Noch keine Veranstaltungen veröffentlicht.", "Tiếng Việt" to "Chưa có sự kiện nào được đăng.", "Filipino" to "Wala pang nailalathalang mga kaganapan."),
+        "Location" to mapOf("Italiano" to "Luogo", "Español" to "Ubicación", "Português" to "Local", "Français" to "Lieu", "Deutsch" to "Ort", "Tiếng Việt" to "Địa điểm", "Filipino" to "Lugar"),
+        "Provinces, delegations, communities and formation houses." to mapOf("Italiano" to "Province, delegazioni, comunità e case di formazione.", "Español" to "Provincias, delegaciones, comunidades y casas de formación.", "Português" to "Províncias, delegações, comunidades e casas de formação.", "Français" to "Provinces, délégations, communautés et maisons de formation.", "Deutsch" to "Provinzen, Delegationen, Gemeinschaften und Ausbildungshäuser.", "Tiếng Việt" to "Tỉnh dòng, đoàn, cộng đoàn và nhà đào tạo.", "Filipino" to "Mga probinsya, delegasyon, komunidad at formation house."),
+        "No communities have been added yet." to mapOf("Italiano" to "Non sono state ancora aggiunte comunità.", "Español" to "Aún no se han añadido comunidades.", "Português" to "Ainda não foram adicionadas comunidades.", "Français" to "Aucune communauté n’a encore été ajoutée.", "Deutsch" to "Noch keine Gemeinschaften hinzugefügt.", "Tiếng Việt" to "Chưa có cộng đoàn nào được thêm.", "Filipino" to "Wala pang idinagdag na mga komunidad."),
+        "Private and community conversations." to mapOf("Italiano" to "Conversazioni private e della comunità.", "Español" to "Conversaciones privadas y comunitarias.", "Português" to "Conversas privadas e comunitárias.", "Français" to "Conversations privées et communautaires.", "Deutsch" to "Private und gemeinschaftliche Gespräche.", "Tiếng Việt" to "Trò chuyện riêng tư và cộng đoàn.", "Filipino" to "Pribado at mga pag-uusap ng komunidad."),
+        "No conversations yet." to mapOf("Italiano" to "Nessuna conversazione.", "Español" to "Aún no hay conversaciones.", "Português" to "Ainda não há conversas.", "Français" to "Aucune conversation.", "Deutsch" to "Noch keine Gespräche.", "Tiếng Việt" to "Chưa có cuộc trò chuyện.", "Filipino" to "Wala pang pag-uusap."),
+        "Community conversation" to mapOf("Italiano" to "Conversazione comunitaria", "Español" to "Conversación comunitaria", "Português" to "Conversa da comunidade", "Français" to "Conversation communautaire", "Deutsch" to "Gemeinschaftsgespräch", "Tiếng Việt" to "Trò chuyện cộng đoàn", "Filipino" to "Pag-uusap ng komunidad"),
+        "Group" to mapOf("Italiano" to "Gruppo", "Español" to "Grupo", "Português" to "Grupo", "Français" to "Groupe", "Deutsch" to "Gruppe", "Tiếng Việt" to "Nhóm", "Filipino" to "Grupo"),
+        "Private conversation" to mapOf("Italiano" to "Conversazione privata", "Español" to "Conversación privada", "Português" to "Conversa privada", "Français" to "Conversation privée", "Deutsch" to "Privates Gespräch", "Tiếng Việt" to "Trò chuyện riêng", "Filipino" to "Pribadong pag-uusap"),
+        "Conversation" to mapOf("Italiano" to "Conversazione", "Español" to "Conversación", "Português" to "Conversa", "Français" to "Conversation", "Deutsch" to "Gespräch", "Tiếng Việt" to "Cuộc trò chuyện", "Filipino" to "Pag-uusap"),
+        "You" to mapOf("Italiano" to "Tu", "Español" to "Tú", "Português" to "Você", "Français" to "Vous", "Deutsch" to "Du", "Tiếng Việt" to "Bạn", "Filipino" to "Ikaw"),
+        "Member" to mapOf("Italiano" to "Membro", "Español" to "Miembro", "Português" to "Membro", "Français" to "Membre", "Deutsch" to "Mitglied", "Tiếng Việt" to "Thành viên", "Filipino" to "Miyembro"),
+        "Message..." to mapOf("Italiano" to "Messaggio...", "Español" to "Mensaje...", "Português" to "Mensagem...", "Français" to "Message...", "Deutsch" to "Nachricht...", "Tiếng Việt" to "Tin nhắn...", "Filipino" to "Mensahe..."),
+        "Email" to mapOf("Italiano" to "Email", "Español" to "Correo electrónico", "Português" to "Email", "Français" to "E-mail", "Deutsch" to "E-Mail", "Tiếng Việt" to "Email", "Filipino" to "Email"),
+        "Password" to mapOf("Italiano" to "Password", "Español" to "Contraseña", "Português" to "Palavra-passe", "Français" to "Mot de passe", "Deutsch" to "Passwort", "Tiếng Việt" to "Mật khẩu", "Filipino" to "Password"),
+        "Registering..." to mapOf("Italiano" to "Registrazione...", "Español" to "Registrando...", "Português" to "A registar...", "Français" to "Inscription...", "Deutsch" to "Registrieren...", "Tiếng Việt" to "Đang đăng ký...", "Filipino" to "Nagrerehistro..."),
+        "Sending..." to mapOf("Italiano" to "Invio...", "Español" to "Enviando...", "Português" to "A enviar...", "Français" to "Envoi...", "Deutsch" to "Senden...", "Tiếng Việt" to "Đang gửi...", "Filipino" to "Ipinapadala...")
         "Edit" to mapOf("Italiano" to "Modifica", "Español" to "Editar", "Português" to "Editar", "Français" to "Modifier", "Deutsch" to "Bearbeiten", "Tiếng Việt" to "Chỉnh sửa", "Filipino" to "I-edit"),
         "Edit post" to mapOf("Italiano" to "Modifica post", "Español" to "Editar publicación", "Português" to "Editar publicação", "Français" to "Modifier la publication", "Deutsch" to "Beitrag bearbeiten", "Tiếng Việt" to "Chỉnh sửa bài đăng", "Filipino" to "I-edit ang post"),
         "Save changes" to mapOf("Italiano" to "Salva modifiche", "Español" to "Guardar cambios", "Português" to "Guardar alterações", "Français" to "Enregistrer les modifications", "Deutsch" to "Änderungen speichern", "Tiếng Việt" to "Lưu thay đổi", "Filipino" to "I-save ang mga pagbabago"),
@@ -1619,7 +1651,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                                     message = e.message ?: "Could not mark notifications as read."
                                 }
                             }
-                        }) { Text("Mark all as read") }
+                        }) { Text(localized("Mark all as read", language)) }
                     }
                 }
             }
@@ -1667,7 +1699,7 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
             { search = it },
             Modifier.fillMaxWidth(),
             singleLine = true,
-            placeholder = { Text("Search by name, province, community or ministry") }
+            placeholder = { Text(localized("Search by name, province, community or ministry", language)) }
         )
         Spacer(Modifier.height(12.dp))
 
@@ -1690,13 +1722,13 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member", style = MaterialTheme.typography.titleMedium)
-                                member.province?.takeIf { it.isNotBlank() }?.let { Text("Province: " + it, style = MaterialTheme.typography.bodySmall) }
-                                member.community?.takeIf { it.isNotBlank() }?.let { Text("Community: " + it, style = MaterialTheme.typography.bodySmall) }
+                                member.province?.takeIf { it.isNotBlank() }?.let { Text(localized("Province", language) + ": " + it, style = MaterialTheme.typography.bodySmall) }
+                                member.community?.takeIf { it.isNotBlank() }?.let { Text(localized("Community", language) + ": " + it, style = MaterialTheme.typography.bodySmall) }
                             }
                         }
                         Spacer(Modifier.height(10.dp))
                         when (statuses[member.id]) {
-                            "friends" -> Text("Friends", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            "friends" -> Text(localized("Friends", language), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                             "outgoing" -> Text(localized("Request sent", language), color = MaterialTheme.colorScheme.secondary)
                             "incoming" -> Text(localized("This member sent you a request", language), color = MaterialTheme.colorScheme.secondary)
                             else -> Button(onClick = {
@@ -1769,7 +1801,7 @@ private fun EventsScreen(language: String = "English") {
                     Column(Modifier.padding(16.dp)) {
                         Text(event.title, style = MaterialTheme.typography.titleLarge)
                         if (!event.startAt.isNullOrBlank()) Text(event.startAt!!)
-                        if (!event.location.isNullOrBlank()) Text("Location: " + event.location)
+                        if (!event.location.isNullOrBlank()) Text(localized("Location", language) + ": " + event.location)
                         if (!event.description.isNullOrBlank()) {
                             Spacer(Modifier.height(6.dp))
                             Text(event.description!!)
@@ -1873,7 +1905,7 @@ private fun MessagesScreen(profile: MemberProfile, language: String = "English")
     }
 
     if (selected != null) {
-        ChatScreen(profile, selected!!, onBack = { selected = null })
+        ChatScreen(profile, selected!!, language = language, onBack = { selected = null })
         return
     }
 
@@ -1891,8 +1923,8 @@ private fun MessagesScreen(profile: MemberProfile, language: String = "English")
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.fillMaxWidth().padding(8.dp)) {
-                            Text(conversation.title ?: "Community conversation")
-                            Text(if (conversation.isGroup) "Group" else "Private conversation")
+                            Text(conversation.title ?: localized("Community conversation", language))
+                            Text(if (conversation.isGroup) localized("Group", language) else localized("Private conversation", language))
                         }
                     }
                 }
@@ -1902,7 +1934,7 @@ private fun MessagesScreen(profile: MemberProfile, language: String = "English")
 }
 
 @Composable
-private fun ChatScreen(profile: MemberProfile, conversation: Conversation, onBack: () -> Unit) {
+private fun ChatScreen(profile: MemberProfile, conversation: Conversation, language: String = "English", onBack: () -> Unit) {
     var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
     var composer by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
@@ -1945,7 +1977,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, onBac
     Column(Modifier.fillMaxSize().padding(16.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = onBack) { Text(localized("Back", language)) }
-            Text(conversation.title ?: "Conversation", style = MaterialTheme.typography.titleLarge)
+            Text(conversation.title ?: localized("Conversation", language), style = MaterialTheme.typography.titleLarge)
         }
         LazyColumn(
             Modifier.weight(1f).fillMaxWidth(),
@@ -1954,7 +1986,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, onBac
             items(messages, key = { it.id }) { item ->
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
-                        Text(if (item.senderId == profile.id) "You" else "Member")
+                        Text(if (item.senderId == profile.id) localized("You", language) else localized("Member", language))
                         Text(item.messageText)
                     }
                 }
