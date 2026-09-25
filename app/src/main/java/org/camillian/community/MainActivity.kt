@@ -874,17 +874,6 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
         }
     }
 
-    fun refreshHome() {
-        if (refreshing) return
-        refreshing = true
-        loadFeed(false) {
-            loadAuthors()
-            loadReactions()
-            loadNotifications()
-            refreshing = false
-        }
-    }
-
     fun loadAuthors() {
         scope.launch {
             try {
@@ -905,6 +894,17 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
             } catch (e: Exception) {
                 message = e.message ?: "Could not load reactions."
             }
+        }
+    }
+
+    fun refreshHome() {
+        if (refreshing) return
+        refreshing = true
+        loadFeed(false) {
+            loadAuthors()
+            loadReactions()
+            loadNotifications()
+            refreshing = false
         }
     }
 
