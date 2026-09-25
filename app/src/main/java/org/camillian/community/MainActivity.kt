@@ -68,9 +68,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonPrimitive
+import org.json.JSONArray
 import kotlinx.serialization.json.put
 
 private val translationClient = HttpClient(Android)
@@ -96,10 +94,12 @@ private suspend fun translateText(text: String, targetLanguage: String): String 
         parameter("dt", "t")
         parameter("q", text)
     }.bodyAsText()
-    val root = Json.parseToJsonElement(response)
-    val parts = root.jsonArray.firstOrNull()?.jsonArray ?: return text
-    return parts.joinToString("") { part ->
-        part.jsonArray.firstOrNull()?.jsonPrimitive?.contentOrNull.orEmpty()
+    val rows = JSONArray(response).optJSONArray(0) ?: return text
+    return buildString {
+        for (index in 0 until rows.length()) {
+            val segment = rows.optJSONArray(index)
+            if (segment != null && segment.length() > 0) append(segment.optString(0))
+        }
     }.ifBlank { text }
 }
 
@@ -181,9 +181,9 @@ private fun App(recoveryMode: Boolean = false) {
         ) { screen ->
             Box(Modifier.fillMaxSize()) {
                 when (screen) {
-                    "recovery" -> RecoveryPasswordScreen(onDone = { profile = null })
+                    "recovery" -> RecoveryPasswordScreen(language = language, onDone = { profile = null })
                     "login" -> LoginScreen(language = language, onLanguageChange = { language = it }, onApproved = { profile = it }, onMessage = { message = it }, initialMessage = message)
-                    "admin" -> AdminDashboard(profile!!, onLogout = {
+                    "admin" -> AdminDashboard(profile!!, language = language, onLanguageChange = { language = it }, onLogout = {
                         appScope.launch {
                             Supabase.client.auth.signOut()
                             profile = null
@@ -220,7 +220,7 @@ private fun AppBackground(content: @Composable () -> Unit) {
 }
 
 @Composable
-private fun RecoveryPasswordScreen(onDone: () -> Unit) {
+private fun RecoveryPasswordScreen(language: String = "English", onDone: () -> Unit) {
     var password by remember { mutableStateOf("") }
     var confirm by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
@@ -715,7 +715,9 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     var postProvince by remember { mutableStateOf(profile.province.orEmpty()) }
     var translatedPosts by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var translatingPostId by remember { mutableStateOf<String?>(null) }
+    var editingPostId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(language) { translatedPosts = emptyMap(); translatingPostId = null }
     val context = LocalContext.current
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         mediaUri = uri
@@ -758,6 +760,31 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
             } catch (e: Exception) {
                 message = e.message ?: "Could not load reactions."
             }
+        }
+    }
+
+    fun editPost(post: FeedPost) {
+        editingPostId = post.id
+        composer = post.textContent.orEmpty()
+        postProvince = post.province.orEmpty()
+        showComposer = true
+    }
+
+    fun saveEditedPost() {
+        val postId = editingPostId ?: return
+        scope.launch {
+            posting = true
+            try {
+                Supabase.client.from("posts").update(buildJsonObject {
+                    put("text_content", composer.trim().ifBlank { null })
+                    put("province", postProvince.trim().ifBlank { null })
+                }) { filter { filter("id", FilterOperator.EQ, postId) } }
+                editingPostId = null
+                composer = ""
+                showComposer = false
+                loadFeed()
+            } catch (e: Exception) { message = e.message ?: "Could not edit post." }
+            finally { posting = false }
         }
     }
 
@@ -898,8 +925,8 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
             ) {
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text(localized("Share with the community", language), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { showComposer = false }) { Text(localized("Close", language)) }
+                        Text(localized(if (editingPostId == null) "Share with the community" else "Edit post", language), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        TextButton(onClick = { showComposer = false; editingPostId = null; composer = "" }) { Text(localized("Close", language)) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text(localized("Photo", language)) }
@@ -926,11 +953,11 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(
-                        onClick = { createPost() },
+                        onClick = { if (editingPostId == null) createPost() else saveEditedPost() },
                         enabled = !posting && (composer.isNotBlank() || mediaUri != null),
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(18.dp)
-                    ) { Text(if (posting) "Publishing..." else "Publish") }
+                    ) { Text(if (posting) localized(if (editingPostId == null) "Publishing..." else "Saving...", language) else localized(if (editingPostId == null) "Publish" else "Save changes", language)) }
                 }
             }
         }
@@ -1120,6 +1147,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                                 }
                                 Spacer(Modifier.weight(1f))
                                 if (post.authorId == profile.id) {
+                                    TextButton(onClick = { editPost(post) }) { Text(localized("Edit", language)) }
                                     TextButton(onClick = { deletePost(post.id) }) { Text(localized("Delete", language)) }
                                 }
                             }
@@ -1285,7 +1313,14 @@ private fun localized(key: String, language: String): String {
         "Translating..." to mapOf("Italiano" to "Traduzione...", "Español" to "Traduciendo...", "Português" to "Traduzindo...", "Français" to "Traduction...", "Deutsch" to "Übersetzen...", "Tiếng Việt" to "Đang dịch...", "Filipino" to "Isinasalin..."),
         "Translation" to mapOf("Italiano" to "Traduzione", "Español" to "Traducción", "Português" to "Tradução", "Français" to "Traduction", "Deutsch" to "Übersetzung", "Tiếng Việt" to "Bản dịch", "Filipino" to "Salin"),
         "Translation failed" to mapOf("Italiano" to "Traduzione non riuscita", "Español" to "La traducción falló", "Português" to "A tradução falhou", "Français" to "La traduction a échoué", "Deutsch" to "Übersetzung fehlgeschlagen", "Tiếng Việt" to "Dịch không thành công", "Filipino" to "Hindi nagtagumpay ang pagsasalin"),
-        "Close" to mapOf("Italiano" to "Chiudi", "Español" to "Cerrar", "Português" to "Fechar", "Français" to "Fermer", "Deutsch" to "Schließen", "Tiếng Việt" to "Đóng", "Filipino" to "Isara")
+        "Close" to mapOf("Italiano" to "Chiudi", "Español" to "Cerrar", "Português" to "Fechar", "Français" to "Fermer", "Deutsch" to "Schließen", "Tiếng Việt" to "Đóng", "Filipino" to "Isara"),
+        "Edit" to mapOf("Italiano" to "Modifica", "Español" to "Editar", "Português" to "Editar", "Français" to "Modifier", "Deutsch" to "Bearbeiten", "Tiếng Việt" to "Chỉnh sửa", "Filipino" to "I-edit"),
+        "Edit post" to mapOf("Italiano" to "Modifica post", "Español" to "Editar publicación", "Português" to "Editar publicação", "Français" to "Modifier la publication", "Deutsch" to "Beitrag bearbeiten", "Tiếng Việt" to "Chỉnh sửa bài đăng", "Filipino" to "I-edit ang post"),
+        "Save changes" to mapOf("Italiano" to "Salva modifiche", "Español" to "Guardar cambios", "Português" to "Guardar alterações", "Français" to "Enregistrer les modifications", "Deutsch" to "Änderungen speichern", "Tiếng Việt" to "Lưu thay đổi", "Filipino" to "I-save ang mga pagbabago"),
+        "Publishing..." to mapOf("Italiano" to "Pubblicazione...", "Español" to "Publicando...", "Português" to "Publicando...", "Français" to "Publication...", "Deutsch" to "Wird veröffentlicht...", "Tiếng Việt" to "Đang đăng...", "Filipino" to "Ipinapadala..."),
+        "Saving..." to mapOf("Italiano" to "Salvataggio...", "Español" to "Guardando...", "Português" to "Salvando...", "Français" to "Enregistrement...", "Deutsch" to "Speichern...", "Tiếng Việt" to "Đang lưu...", "Filipino" to "Nagse-save..."),
+        "Admin Dashboard" to mapOf("Italiano" to "Pannello amministratore", "Español" to "Panel de administración", "Português" to "Painel de administração", "Français" to "Tableau de bord administrateur", "Deutsch" to "Administrationsbereich", "Tiếng Việt" to "Bảng quản trị", "Filipino" to "Dashboard ng administrador"),
+        "Administrator" to mapOf("Italiano" to "Amministratore", "Español" to "Administrador", "Português" to "Administrador", "Français" to "Administrateur", "Deutsch" to "Administrator", "Tiếng Việt" to "Quản trị viên", "Filipino" to "Administrator")
     )
     return if (language == "English") key else data[key]?.get(language) ?: key
 }
@@ -1940,7 +1975,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
 
 
 @Composable
-private fun AdminTools(profile: MemberProfile) {
+private fun AdminTools(profile: MemberProfile, language: String = "English") {
     var inviteEmail by remember { mutableStateOf("") }
     var inviteMessage by remember { mutableStateOf("") }
     var inviteSending by remember { mutableStateOf(false) }
@@ -1955,7 +1990,7 @@ private fun AdminTools(profile: MemberProfile) {
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Administration tools", style = MaterialTheme.typography.titleLarge)
+            Text(localized("Administration tools", language), style = MaterialTheme.typography.titleLarge)
             Text("Invite a member by email", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(inviteEmail, { inviteEmail = it }, Modifier.fillMaxWidth(), label = { Text("Member email") }, singleLine = true)
             Button(enabled = !inviteSending && inviteEmail.contains("@"), onClick = {
@@ -2055,7 +2090,7 @@ private fun LanguageSelector(selected: String = "English", onSelected: (String) 
 }
 
 @Composable
-private fun AdminDashboard(profile: MemberProfile, onLogout: () -> Unit) {
+private fun AdminDashboard(profile: MemberProfile, language: String = "English", onLanguageChange: (String) -> Unit = {}, onLogout: () -> Unit) {
     var status by remember { mutableStateOf("pending") }
     var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
     var message by remember { mutableStateOf("") }
@@ -2110,15 +2145,15 @@ private fun AdminDashboard(profile: MemberProfile, onLogout: () -> Unit) {
             }
 
             Column(Modifier.weight(1f)) {
-                Text("Admin Dashboard", style = MaterialTheme.typography.headlineMedium)
-                Text("Administrator: ${profile.fullName ?: profile.email ?: "Admin"}")
+                Text(localized("Admin Dashboard", language), style = MaterialTheme.typography.headlineMedium)
+                Text("${localized("Administrator", language)}: ${profile.fullName ?: profile.email ?: "Admin"}")
             }
             TextButton(onClick = { loadMembers() }, enabled = !loading) {
                 Text(if (loading) "Loading..." else "Refresh")
             }
         }
 
-        AdminTools(profile)
+        AdminTools(profile, language)
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("pending", "approved", "rejected", "suspended").forEach { value ->
