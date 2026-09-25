@@ -2,9 +2,9 @@
 <resources>
     <style name="Theme.CamillianCommunity" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#8E44AD</item>
-        <item name="android:navigationBarColor">#F7F0F8</item>
-        <item name="android:statusBarColor">#6D3B7D</item>
+        <item name="android:colorAccent">#C8102E</item>
+        <item name="android:navigationBarColor">#FFF8F8</item>
+        <item name="android:statusBarColor">#0057B8</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>
