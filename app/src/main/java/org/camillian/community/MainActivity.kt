@@ -126,8 +126,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        Supabase.client.handleDeeplinks(intent)
-        if (intent.dataString?.contains("type=recovery") == true) {
+        if (intent.dataString?.contains("type=recovery") == true || intent.dataString?.contains("type=invite") == true) {
             recreate()
         }
     }
@@ -148,7 +147,10 @@ class MainActivity : ComponentActivity() {
         )
     ) {
         Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
-            App(recoveryMode = intent?.dataString?.contains("type=recovery") == true)
+            App(
+                recoveryMode = intent?.dataString?.contains("type=recovery") == true,
+                inviteMode = intent?.dataString?.contains("type=invite") == true
+            )
         }
     }
 }
@@ -156,7 +158,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App(recoveryMode: Boolean = false) {
+private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
     var language by remember { mutableStateOf("English") }
     var profile by remember { mutableStateOf<MemberProfile?>(null) }
     var message by remember { mutableStateOf("") }
@@ -164,6 +166,7 @@ private fun App(recoveryMode: Boolean = false) {
 
     val destination = when {
         recoveryMode -> "recovery"
+        inviteMode -> "invite"
         profile == null -> "login"
         profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin" -> "admin"
         else -> "home"
@@ -182,6 +185,7 @@ private fun App(recoveryMode: Boolean = false) {
             Box(Modifier.fillMaxSize()) {
                 when (screen) {
                     "recovery" -> RecoveryPasswordScreen(language = language, onDone = { profile = null })
+                    "invite" -> InvitePasswordScreen(language = language, onDone = { profile = null })
                     "login" -> LoginScreen(language = language, onLanguageChange = { language = it }, onApproved = { profile = it }, onMessage = { message = it }, initialMessage = message)
                     "admin" -> AdminDashboard(profile!!, language = language, onLanguageChange = { language = it }, onLogout = {
                         appScope.launch {
@@ -258,6 +262,53 @@ private fun RecoveryPasswordScreen(language: String = "English", onDone: () -> U
         if (message.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
             Text(message)
+        }
+    }
+}
+
+@Composable
+private fun InvitePasswordScreen(language: String = "English", onDone: () -> Unit) {
+    var password by remember { mutableStateOf("") }
+    var confirm by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var saving by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    Column(
+        Modifier.fillMaxSize().padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(localized("Accept invitation", language), style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(8.dp))
+        Text(localized("Create your password to join Camillian Community.", language), textAlign = TextAlign.Center)
+        Spacer(Modifier.height(20.dp))
+        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), label = { Text(localized("New password", language)) }, visualTransformation = PasswordVisualTransformation())
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(confirm, { confirm = it }, Modifier.fillMaxWidth(), label = { Text(localized("Confirm password", language)) }, visualTransformation = PasswordVisualTransformation())
+        Spacer(Modifier.height(16.dp))
+        Button(
+            enabled = !saving && password.length >= 6 && password == confirm,
+            onClick = {
+                scope.launch {
+                    saving = true
+                    try {
+                        Supabase.client.auth.updateUser { this.password = password }
+                        Supabase.client.auth.signOut()
+                        message = localized("Invitation accepted. You can now sign in.", language)
+                        onDone()
+                    } catch (e: Exception) {
+                        message = e.message ?: localized("Could not complete invitation.", language)
+                    } finally {
+                        saving = false
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        ) { Text(if (saving) localized("Saving...", language) else localized("Set password and continue", language)) }
+        if (message.isNotBlank()) {
+            Spacer(Modifier.height(12.dp))
+            Text(message, textAlign = TextAlign.Center)
         }
     }
 }
@@ -1450,7 +1501,12 @@ private fun localized(key: String, language: String): String {
         "Decline" to mapOf("Italiano" to "Rifiuta", "Español" to "Rechazar", "Português" to "Recusar", "Français" to "Refuser", "Deutsch" to "Ablehnen", "Tiếng Việt" to "Từ chối", "Filipino" to "Tanggihan"),
         "Add Friend" to mapOf("Italiano" to "Aggiungi amico", "Español" to "Añadir amigo", "Português" to "Adicionar amigo", "Français" to "Ajouter un ami", "Deutsch" to "Freund hinzufügen", "Tiếng Việt" to "Thêm bạn", "Filipino" to "Magdagdag ng kaibigan"),
         "Request sent" to mapOf("Italiano" to "Richiesta inviata", "Español" to "Solicitud enviada", "Português" to "Pedido enviado", "Français" to "Demande envoyée", "Deutsch" to "Anfrage gesendet", "Tiếng Việt" to "Đã gửi lời mời", "Filipino" to "Naipadala ang request"),
-        "This member sent you a request" to mapOf("Italiano" to "Questo membro ti ha inviato una richiesta", "Español" to "Este miembro te envió una solicitud", "Português" to "Este membro enviou um pedido", "Français" to "Ce membre vous a envoyé une demande", "Deutsch" to "Dieses Mitglied hat dir eine Anfrage gesendet", "Tiếng Việt" to "Thành viên này đã gửi lời mời cho bạn", "Filipino" to "Nagpadala sa iyo ng request ang miyembrong ito")
+        "This member sent you a request" to mapOf("Italiano" to "Questo membro ti ha inviato una richiesta", "Español" to "Este miembro te envió una solicitud", "Português" to "Este membro enviou um pedido", "Français" to "Ce membre vous a envoyé une demande", "Deutsch" to "Dieses Mitglied hat dir eine Anfrage gesendet", "Tiếng Việt" to "Thành viên này đã gửi lời mời cho bạn", "Filipino" to "Nagpadala sa iyo ng request ang miyembrong ito"),
+        "Accept invitation" to mapOf("Italiano" to "Accetta invito", "Español" to "Aceptar invitación", "Português" to "Aceitar convite", "Français" to "Accepter l’invitation", "Deutsch" to "Einladung annehmen", "Tiếng Việt" to "Chấp nhận lời mời", "Filipino" to "Tanggapin ang imbitasyon"),
+        "Create your password to join Camillian Community." to mapOf("Italiano" to "Crea la tua password per entrare nella Comunità Camilliana.", "Español" to "Crea tu contraseña para unirte a la Comunidad Camiliana.", "Português" to "Crie sua palavra-passe para entrar na Comunidade Camiliana.", "Français" to "Créez votre mot de passe pour rejoindre la Communauté Camillienne.", "Deutsch" to "Erstelle dein Passwort, um der Camillianischen Gemeinschaft beizutreten.", "Tiếng Việt" to "Tạo mật khẩu để tham gia Cộng đoàn Camillian.", "Filipino" to "Gumawa ng password para sumali sa Camillian Community."),
+        "Invitation accepted. You can now sign in." to mapOf("Italiano" to "Invito accettato. Ora puoi accedere.", "Español" to "Invitación aceptada. Ahora puedes iniciar sesión.", "Português" to "Convite aceite. Agora pode iniciar sessão.", "Français" to "Invitation acceptée. Vous pouvez maintenant vous connecter.", "Deutsch" to "Einladung angenommen. Du kannst dich jetzt anmelden.", "Tiếng Việt" to "Đã chấp nhận lời mời. Bạn có thể đăng nhập.", "Filipino" to "Tinanggap ang imbitasyon. Maaari ka nang mag-sign in."),
+        "Could not complete invitation." to mapOf("Italiano" to "Impossibile completare l’invito.", "Español" to "No se pudo completar la invitación.", "Português" to "Não foi possível concluir o convite.", "Français" to "Impossible de terminer l’invitation.", "Deutsch" to "Einladung konnte nicht abgeschlossen werden.", "Tiếng Việt" to "Không thể hoàn tất lời mời.", "Filipino" to "Hindi makumpleto ang imbitasyon."),
+        "Set password and continue" to mapOf("Italiano" to "Imposta password e continua", "Español" to "Establecer contraseña y continuar", "Português" to "Definir palavra-passe e continuar", "Français" to "Définir le mot de passe et continuer", "Deutsch" to "Passwort festlegen und fortfahren", "Tiếng Việt" to "Đặt mật khẩu và tiếp tục", "Filipino" to "Itakda ang password at magpatuloy")
     )
     return if (language == "English") key else data[key]?.get(language) ?: key
 }
