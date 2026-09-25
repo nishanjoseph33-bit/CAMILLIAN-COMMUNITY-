@@ -873,6 +873,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
         Text("My Profile", style = MaterialTheme.typography.headlineMedium,
             modifier = Modifier.padding(20.dp))
+        LanguageSelector()
         LazyColumn(
             Modifier.fillMaxSize().padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
