@@ -8,6 +8,7 @@ plugins {
 android {
     namespace = "org.camillian.community"
     compileSdk = 36
+
     defaultConfig {
         applicationId = "org.camillian.community"
         minSdk = 26
@@ -21,10 +22,20 @@ android {
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", "\"$supabaseKey\"")
     }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
     }
+}
+
+kotlin {
+    jvmToolchain(17)
 }
 
 dependencies {
