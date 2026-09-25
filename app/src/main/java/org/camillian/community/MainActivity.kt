@@ -496,6 +496,7 @@ private fun LoginScreen(
 
         if (showRegister) {
             RegisterDialog(
+                language = language,
                 onDismiss = { showRegister = false },
                 onMessage = { message = it }
             )
@@ -566,7 +567,7 @@ private fun LoginField(
 private data class InviteCheck(val valid: Boolean)
 
 @Composable
-private fun RegisterDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
+private fun RegisterDialog(language: String = "English", onDismiss: () -> Unit, onMessage: (String) -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
