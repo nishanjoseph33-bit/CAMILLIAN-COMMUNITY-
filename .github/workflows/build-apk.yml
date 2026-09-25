@@ -17,6 +17,11 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
@@ -26,8 +31,7 @@ jobs:
           SUPABASE_PUBLISHABLE_KEY: ${{ secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
           printf "SUPABASE_URL=%s\nSUPABASE_PUBLISHABLE_KEY=%s\n" "$SUPABASE_URL" "$SUPABASE_PUBLISHABLE_KEY" > local.properties
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          gradle assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
