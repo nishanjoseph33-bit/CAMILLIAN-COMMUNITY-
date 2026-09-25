@@ -325,7 +325,7 @@ private fun HomeScreen(profile: MemberProfile) {
                             Spacer(Modifier.height(6.dp))
                             Text("Member ${post.authorId.take(8)}", style = MaterialTheme.typography.titleMedium)
                             Spacer(Modifier.height(8.dp))
-                            if (!post.content.isNullOrBlank()) Text(post.content)
+                            if (!post.textContent.isNullOrBlank()) Text(post.textContent)
                             Spacer(Modifier.height(8.dp))
                             Text(post.createdAt ?: "", style = MaterialTheme.typography.bodySmall)
                             Spacer(Modifier.height(6.dp))
