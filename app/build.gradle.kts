@@ -14,13 +14,17 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
-        val localProperties = project.rootProject.file("local.properties")
-        val properties = java.util.Properties()
-        if (localProperties.exists()) localProperties.inputStream().use { properties.load(it) }
-        buildConfigField("String", "SUPABASE_URL", """ + properties.getProperty("SUPABASE_URL", "") + """)
-        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", """ + properties.getProperty("SUPABASE_PUBLISHABLE_KEY", "") + """)
+
+        val supabaseUrl = providers.environmentVariable("SUPABASE_URL").orNull ?: ""
+        val supabaseKey = providers.environmentVariable("SUPABASE_PUBLISHABLE_KEY").orNull ?: ""
+
+        buildConfigField("String", "SUPABASE_URL", ""$supabaseUrl"")
+        buildConfigField("String", "SUPABASE_PUBLISHABLE_KEY", ""$supabaseKey"")
     }
-    buildFeatures { compose = true; buildConfig = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
 }
 
 dependencies {
