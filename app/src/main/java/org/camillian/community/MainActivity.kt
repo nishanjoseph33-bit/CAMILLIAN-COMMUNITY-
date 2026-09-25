@@ -2379,6 +2379,16 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
             }
         }
 
+        if (message.isNotBlank()) {
+            Text(
+                message,
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            )
+        }
+
         Surface(
             modifier = Modifier.fillMaxWidth(),
             tonalElevation = 4.dp
