@@ -115,7 +115,7 @@ private fun App(recoveryMode: Boolean = false) {
                 when (screen) {
                     "recovery" -> RecoveryPasswordScreen(onDone = { profile = null })
                     "login" -> LoginScreen(language = language, onLanguageChange = { language = it }, onApproved = { profile = it }, onMessage = { message = it }, initialMessage = message)
-                    "admin" -> AdminDashboard(profile!!)
+                    "admin" -> AdminDashboard(profile!!, onLogout = {\n                        appScope.launch {\n                            Supabase.client.auth.signOut()\n                            profile = null\n                        }\n                    })
                     else -> CommunityShell(profile!!, language = language, onLanguageChange = { language = it }, onProfileUpdated = { updated -> profile = updated }, onLogout = {
                         appScope.launch {
                             Supabase.client.auth.signOut()
@@ -1285,7 +1285,7 @@ private fun LanguageSelector(selected: String = "English", onSelected: (String) 
 }
 
 @Composable
-private fun AdminDashboard(profile: MemberProfile) {
+private fun AdminDashboard(profile: MemberProfile, onLogout: () -> Unit) {
     var status by remember { mutableStateOf("pending") }
     var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
     var message by remember { mutableStateOf("") }
@@ -1335,6 +1335,10 @@ private fun AdminDashboard(profile: MemberProfile) {
     ) {
         Spacer(Modifier.height(20.dp))
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = onLogout) {
+                Text("Logout")
+            }
+
             Column(Modifier.weight(1f)) {
                 Text("Admin Dashboard", style = MaterialTheme.typography.headlineMedium)
                 Text("Administrator: ${profile.fullName ?: profile.email ?: "Admin"}")
