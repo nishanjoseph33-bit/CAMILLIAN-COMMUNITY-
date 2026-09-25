@@ -1,6 +1,9 @@
 package org.camillian.community
 
 import android.os.Bundle
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
@@ -79,6 +82,8 @@ private fun LoginScreen(
 ) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var showRegister by remember { mutableStateOf(false) }
+    var showRecovery by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf(initialMessage) }
     var loading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -142,11 +147,90 @@ private fun LoginScreen(
         ) {
             Text(if (loading) "Checking membership..." else "Sign in")
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(onClick = { showRegister = true }) { Text("Register") }
+            TextButton(onClick = { showRecovery = true }) { Text("Forgot password?") }
+        }
         if (message.isNotBlank()) {
             Spacer(Modifier.height(16.dp))
             Text(message)
         }
+        if (showRegister) RegisterDialog(onDismiss = { showRegister = false }, onMessage = { message = it })
+        if (showRecovery) RecoveryDialog(onDismiss = { showRecovery = false }, onMessage = { message = it })
     }
+}
+
+
+@Composable
+private fun RegisterDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var name by remember { mutableStateOf("") }
+    var invite by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Member registration") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(name, { name = it }, label = { Text("Full name") })
+                OutlinedTextField(email, { email = it }, label = { Text("Email") })
+                OutlinedTextField(password, { password = it }, visualTransformation = PasswordVisualTransformation(), label = { Text("Password") })
+                OutlinedTextField(invite, { invite = it }, label = { Text("Invitation code") })
+            }
+        },
+        confirmButton = {
+            Button(enabled = !busy, onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        val valid = Supabase.client.postgrest.rpc("check_invite_code", buildJsonObject { put("invite_code", invite) }).decodeAs<Boolean>()
+                        if (!valid) error("Invalid or expired invitation code.")
+                        Supabase.client.auth.signUpWith(Email) {
+                            this.email = email.trim()
+                            this.password = password
+                            data = buildJsonObject { put("full_name", name.trim()) }
+                        }
+                        Supabase.client.postgrest.rpc("consume_invite_code", buildJsonObject { put("invite_code", invite) })
+                        onMessage("Registration submitted. An administrator must approve your membership.")
+                        onDismiss()
+                    } catch (e: Exception) {
+                        onMessage(e.message ?: "Registration failed.")
+                    } finally { busy = false }
+                }
+            }) { Text(if (busy) "Registering..." else "Register") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
+}
+
+@Composable
+private fun RecoveryDialog(onDismiss: () -> Unit, onMessage: (String) -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Reset password") },
+        text = { OutlinedTextField(email, { email = it }, label = { Text("Email") }) },
+        confirmButton = {
+            Button(enabled = !busy && email.isNotBlank(), onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        Supabase.client.auth.sendRecoveryEmail(email.trim())
+                        onMessage("Password reset email sent. Check your email.")
+                        onDismiss()
+                    } catch (e: Exception) {
+                        onMessage(e.message ?: "Could not send recovery email.")
+                    } finally { busy = false }
+                }
+            }) { Text(if (busy) "Sending..." else "Send reset email") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    )
 }
 
 @Serializable
