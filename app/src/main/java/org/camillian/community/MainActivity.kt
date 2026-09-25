@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
+import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -46,6 +47,7 @@ private data class MemberProfile(
     val ministry: String? = null,
     @SerialName("role_title") val roleTitle: String? = null,
     val bio: String? = null,
+    @SerialName("avatar_url") val avatarUrl: String? = null,
     @SerialName("member_status") val memberStatus: String,
     @SerialName("member_role") val memberRole: String
 )
@@ -327,7 +329,9 @@ private data class FeedPost(
     @SerialName("author_id") val authorId: String,
     @SerialName("kind") val kind: String = "text",
     @SerialName("text_content") val textContent: String? = null,
-    @SerialName("created_at") val createdAt: String? = null
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("media_url") val mediaUrl: String? = null,
+    @SerialName("media_type") val mediaType: String? = null
 )
 
 @Serializable
@@ -348,6 +352,7 @@ private fun HomeScreen(profile: MemberProfile) {
     var mediaUri by remember { mutableStateOf<Uri?>(null) }
     var mediaKind by remember { mutableStateOf<String?>(null) }
     var reactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var authorProfiles by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
     var reactionCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var reactingPostId by remember { mutableStateOf<String?>(null) }
     var commentPostId by remember { mutableStateOf<String?>(null) }
@@ -371,6 +376,15 @@ private fun HomeScreen(profile: MemberProfile) {
             } finally {
                 loading = false
             }
+        }
+    }
+
+    fun loadAuthors() {
+        scope.launch {
+            try {
+                val authors = Supabase.client.from("profiles").select().decodeList<MemberProfile>()
+                authorProfiles = authors.associateBy { it.id }
+            } catch (_: Exception) { }
         }
     }
 
@@ -442,8 +456,17 @@ private fun HomeScreen(profile: MemberProfile) {
                     val uri = mediaUri!!
                     val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         ?: error("Could not read selected media.")
-                    val extension = if (mediaKind == "video") "mp4" else "jpg"
-                    val path = "posts/" + profile.id + "/" + System.currentTimeMillis() + "." + extension
+                    val mime = context.contentResolver.getType(uri).orEmpty()
+                    val extension = if (mediaKind == "video") {
+                        if (mime.contains("quicktime")) "mov" else "mp4"
+                    } else {
+                        when {
+                            mime.contains("png") -> "png"
+                            mime.contains("webp") -> "webp"
+                            else -> "jpg"
+                        }
+                    }
+                    val path = profile.id + "/posts/" + System.currentTimeMillis() + "." + extension
                     Supabase.client.storage.from("camillian-media").upload(path, bytes) { upsert = false }
                     mediaUrl = Supabase.client.storage.from("camillian-media").publicUrl(path)
                 }
@@ -466,6 +489,7 @@ private fun HomeScreen(profile: MemberProfile) {
 
     LaunchedEffect(Unit) {
         loadFeed()
+        loadAuthors()
         loadReactions()
     }
 
@@ -543,8 +567,19 @@ private fun HomeScreen(profile: MemberProfile) {
                                 color = MaterialTheme.colorScheme.primary
                             )
                             Spacer(Modifier.height(6.dp))
-                            Text("Member " + post.authorId.take(8), style = MaterialTheme.typography.titleMedium)
+                            val author = authorProfiles[post.authorId]
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (!author?.avatarUrl.isNullOrBlank()) {
+                                    AsyncImage(model = author?.avatarUrl, contentDescription = "Member photo", modifier = Modifier.size(44.dp), contentScale = ContentScale.Crop)
+                                    Spacer(Modifier.width(10.dp))
+                                }
+                                Text(author?.fullName?.takeIf { it.isNotBlank() } ?: author?.email ?: "Member", style = MaterialTheme.typography.titleMedium)
+                            }
                             Spacer(Modifier.height(8.dp))
+                            if (!post.mediaUrl.isNullOrBlank()) {
+                                AsyncImage(model = post.mediaUrl, contentDescription = "Post media", modifier = Modifier.fillMaxWidth().heightIn(max = 420.dp), contentScale = ContentScale.Crop)
+                                Spacer(Modifier.height(8.dp))
+                            }
                             if (!post.textContent.isNullOrBlank()) Text(post.textContent)
                             Spacer(Modifier.height(8.dp))
                             Text(post.createdAt ?: "", style = MaterialTheme.typography.bodySmall)
