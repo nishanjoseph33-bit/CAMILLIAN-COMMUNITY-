@@ -3,6 +3,7 @@ package org.camillian.community
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.functions.Functions
 import io.github.jan.supabase.storage.Storage
 
 object Supabase {
@@ -16,6 +17,7 @@ object Supabase {
             host = "auth"
         }
         install(Postgrest)
+        install(Functions)
         install(Storage)
     }
 }
