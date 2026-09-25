@@ -993,9 +993,14 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
     var ministry by remember { mutableStateOf(profile.ministry.orEmpty()) }
     var roleTitle by remember { mutableStateOf(profile.roleTitle.orEmpty()) }
     var bio by remember { mutableStateOf(profile.bio.orEmpty()) }
+    var avatarUrl by remember { mutableStateOf(profile.avatarUrl) }
+    var avatarUri by remember { mutableStateOf<Uri?>(null) }
     var saving by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf("") }
+    var uploadingAvatar by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val avatarPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri -> avatarUri = uri }
 
     Column(Modifier.fillMaxSize()) {
         Text("My Profile", style = MaterialTheme.typography.headlineMedium,
@@ -1005,6 +1010,19 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
             Modifier.fillMaxSize().padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
+            item {
+                if (!avatarUrl.isNullOrBlank()) {
+                    AsyncImage(model = avatarUrl, contentDescription = "Profile photo", modifier = Modifier.fillMaxWidth().height(220.dp), contentScale = ContentScale.Crop)
+                } else if (avatarUri != null) {
+                    AsyncImage(model = avatarUri, contentDescription = "Selected profile photo", modifier = Modifier.fillMaxWidth().height(220.dp), contentScale = ContentScale.Crop)
+                } else {
+                    Image(painter = painterResource(id = R.drawable.camillian_logo), contentDescription = "Camillian logo", modifier = Modifier.size(120.dp), contentScale = ContentScale.Fit)
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = { avatarPicker.launch("image/*") }, enabled = !uploadingAvatar) {
+                    Text(if (avatarUri == null) "Choose profile photo" else "Change profile photo")
+                }
+            }
             item { Text(profile.email ?: "") }
             item { OutlinedTextField(fullName, { fullName = it }, Modifier.fillMaxWidth(), label = { Text("Name") }) }
             item { OutlinedTextField(religiousName, { religiousName = it }, Modifier.fillMaxWidth(), label = { Text("Religious name") }) }
@@ -1022,6 +1040,22 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                         scope.launch {
                             saving = true
                             try {
+                                if (avatarUri != null) {
+                                    uploadingAvatar = true
+                                    val uri = avatarUri!!
+                                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+                                        ?: error("Could not read the selected profile photo.")
+                                    val mime = context.contentResolver.getType(uri).orEmpty()
+                                    val extension = when {
+                                        mime.contains("png") -> "png"
+                                        mime.contains("webp") -> "webp"
+                                        else -> "jpg"
+                                    }
+                                    val path = profile.id + "/avatar-" + System.currentTimeMillis() + "." + extension
+                                    Supabase.client.storage.from("camillian-media").upload(path, bytes) { upsert = false }
+                                    avatarUrl = Supabase.client.storage.from("camillian-media").publicUrl(path)
+                                }
+
                                 Supabase.client.from("profiles").update(buildJsonObject {
                                     put("full_name", fullName.trim())
                                     put("religious_name", religiousName.trim())
@@ -1033,6 +1067,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                                     put("ministry", ministry.trim())
                                     put("role_title", roleTitle.trim())
                                     put("bio", bio.trim())
+                                    put("avatar_url", avatarUrl)
                                 }) {
                                     filter { filter("id", FilterOperator.EQ, profile.id) }
                                 }
@@ -1046,6 +1081,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                             } catch (e: Exception) {
                                 message = e.message ?: "Could not save profile."
                             } finally {
+                                uploadingAvatar = false
                                 saving = false
                             }
                         }
