@@ -241,6 +241,7 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
         }
     }
 }
+}
 
 @Composable
 private fun LaunchSplashScreen(blurRadius: androidx.compose.ui.unit.Dp) {
@@ -2467,4 +2468,3 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
     }
 }
 
-}
