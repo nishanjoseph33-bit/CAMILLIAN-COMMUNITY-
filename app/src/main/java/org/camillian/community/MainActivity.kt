@@ -1095,8 +1095,16 @@ private data class CommunityEvent(
 @Composable
 private fun FriendsScreen(profile: MemberProfile, language: String = "English") {
     var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
+    var statuses by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var incoming by remember { mutableStateOf<List<FriendRequest>>(emptyList()) }
     var search by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(true) }
+    var message by remember { mutableStateOf("") }
+    var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
+
+    fun loadSocialData() {
+        LaunchedEffect(Unit) {}
+    }
 
     LaunchedEffect(Unit) {
         try {
@@ -1104,8 +1112,30 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
                 filter { filter("member_status", FilterOperator.EQ, "approved") }
                 order("full_name", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
             }.decodeList<MemberProfile>().filter { it.id != profile.id }
-        } catch (_: Exception) {
-        } finally { loading = false }
+
+            val reqs = Supabase.client.from("friend_requests").select {
+                filter { filter("receiver_id", FilterOperator.EQ, profile.id) }
+                filter { filter("status", FilterOperator.EQ, "pending") }
+            }.decodeList<FriendRequest>()
+            incoming = reqs
+
+            notifications = Supabase.client.from("notifications").select {
+                filter { filter("user_id", FilterOperator.EQ, profile.id) }
+                order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+            }.decodeList<NotificationItem>()
+
+            val loaded = mutableMapOf<String, String>()
+            members.forEach { member ->
+                loaded[member.id] = Supabase.client.postgrest.rpc("get_friend_status", buildJsonObject {
+                    put("target_user_id", member.id)
+                }).decodeAs<String>()
+            }
+            statuses = loaded
+        } catch (e: Exception) {
+            message = e.message ?: "Could not load friends."
+        } finally {
+            loading = false
+        }
     }
 
     val filtered = members.filter { member ->
@@ -1118,33 +1148,129 @@ private fun FriendsScreen(profile: MemberProfile, language: String = "English") 
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text("Find Friends", style = MaterialTheme.typography.headlineMedium)
-        Text("Find approved members of the Camillian community.")
-        Spacer(Modifier.height(12.dp))
-        OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text("Search by name, province, community or ministry") })
-        Spacer(Modifier.height(12.dp))
-        if (loading) CircularProgressIndicator()
-        else if (filtered.isEmpty()) Text(if (members.isEmpty()) "No other approved members found." else "No members match your search.")
-        else LazyColumn(Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(10.dp), contentPadding = PaddingValues(bottom = 24.dp)) {
-            items(filtered, key = { it.id }) { member ->
-                Card(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (!member.avatarUrl.isNullOrBlank()) AsyncImage(model = member.avatarUrl, contentDescription = "Member photo", modifier = Modifier.size(56.dp), contentScale = ContentScale.Crop)
-                        else Image(painter = painterResource(id = R.drawable.camillian_logo), contentDescription = "Camillian logo", modifier = Modifier.size(56.dp), contentScale = ContentScale.Fit)
-                        Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member", style = MaterialTheme.typography.titleMedium)
-                            member.religiousName?.takeIf { it.isNotBlank() }?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                            member.province?.takeIf { it.isNotBlank() }?.let { Text("Province: " + it, style = MaterialTheme.typography.bodySmall) }
-                            member.community?.takeIf { it.isNotBlank() }?.let { Text("Community: " + it, style = MaterialTheme.typography.bodySmall) }
-                            member.ministry?.takeIf { it.isNotBlank() }?.let { Text("Ministry: " + it, style = MaterialTheme.typography.bodySmall) }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Find Friends", style = MaterialTheme.typography.headlineMedium)
+                Text("Find and connect with Camillian members.")
+            }
+            if (notifications.any { !it.isRead }) {
+                Text("●", color = MaterialTheme.colorScheme.primary, fontSize = 22.sp)
+            }
+        }
+
+        if (incoming.isNotEmpty()) {
+            Spacer(Modifier.height(10.dp))
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(14.dp)) {
+                    Text("Friend Requests", style = MaterialTheme.typography.titleLarge)
+                    incoming.forEach { request ->
+                        Row(Modifier.fillMaxWidth().padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("New friend request", modifier = Modifier.weight(1f))
+                            TextButton(onClick = {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    try {
+                                        Supabase.client.postgrest.rpc("respond_friend_request", buildJsonObject {
+                                            put("request_id", request.id)
+                                            put("accept_request", true)
+                                        })
+                                        message = "Friend request accepted."
+                                    } catch (e: Exception) { message = e.message ?: "Could not accept request." }
+                                }
+                            }) { Text("Accept") }
+                            TextButton(onClick = {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    try {
+                                        Supabase.client.postgrest.rpc("respond_friend_request", buildJsonObject {
+                                            put("request_id", request.id)
+                                            put("accept_request", false)
+                                        })
+                                        message = "Friend request declined."
+                                    } catch (e: Exception) { message = e.message ?: "Could not decline request." }
+                                }
+                            }) { Text("Decline") }
                         }
                     }
                 }
             }
         }
+
+        Spacer(Modifier.height(12.dp))
+        OutlinedTextField(
+            search,
+            { search = it },
+            Modifier.fillMaxWidth(),
+            singleLine = true,
+            placeholder = { Text("Search by name, province, community or ministry") }
+        )
+        Spacer(Modifier.height(12.dp))
+
+        if (loading) CircularProgressIndicator()
+        else if (filtered.isEmpty()) Text(if (members.isEmpty()) "No other approved members found." else "No members match your search.")
+        else LazyColumn(
+            Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            contentPadding = PaddingValues(bottom = 24.dp)
+        ) {
+            items(filtered, key = { it.id }) { member ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.fillMaxWidth().padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (!member.avatarUrl.isNullOrBlank()) {
+                                AsyncImage(model = member.avatarUrl, contentDescription = "Member photo", modifier = Modifier.size(56.dp), contentScale = ContentScale.Crop)
+                            } else {
+                                Image(painter = painterResource(id = R.drawable.camillian_logo), contentDescription = "Camillian logo", modifier = Modifier.size(56.dp), contentScale = ContentScale.Fit)
+                            }
+                            Spacer(Modifier.width(12.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member", style = MaterialTheme.typography.titleMedium)
+                                member.province?.takeIf { it.isNotBlank() }?.let { Text("Province: " + it, style = MaterialTheme.typography.bodySmall) }
+                                member.community?.takeIf { it.isNotBlank() }?.let { Text("Community: " + it, style = MaterialTheme.typography.bodySmall) }
+                            }
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        when (statuses[member.id]) {
+                            "friends" -> Text("Friends", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                            "outgoing" -> Text("Request sent", color = MaterialTheme.colorScheme.secondary)
+                            "incoming" -> Text("This member sent you a request", color = MaterialTheme.colorScheme.secondary)
+                            else -> Button(onClick = {
+                                CoroutineScope(Dispatchers.Main).launch {
+                                    try {
+                                        Supabase.client.postgrest.rpc("send_friend_request", buildJsonObject { put("target_user_id", member.id) })
+                                        statuses = statuses + (member.id to "outgoing")
+                                        message = "Friend request sent."
+                                    } catch (e: Exception) { message = e.message ?: "Could not send request." }
+                                }
+                            }) { Text("Add Friend") }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (message.isNotBlank()) {
+            Text(message, color = MaterialTheme.colorScheme.primary)
+        }
     }
 }
+
+@Serializable
+private data class FriendRequest(
+    val id: String,
+    @SerialName("sender_id") val senderId: String,
+    @SerialName("receiver_id") val receiverId: String,
+    val status: String
+)
+
+@Serializable
+private data class NotificationItem(
+    val id: String,
+    @SerialName("actor_id") val actorId: String? = null,
+    @SerialName("notification_type") val notificationType: String,
+    val title: String,
+    val body: String? = null,
+    @SerialName("is_read") val isRead: Boolean = false,
+    @SerialName("created_at") val createdAt: String? = null
+)
 
 @Composable
 private fun EventsScreen(language: String = "English") {
