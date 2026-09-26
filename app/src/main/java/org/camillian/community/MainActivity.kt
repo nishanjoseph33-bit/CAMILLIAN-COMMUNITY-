@@ -1200,7 +1200,12 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                 )
             }
             Spacer(Modifier.width(10.dp))
-            Text("Camillian", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold), modifier = Modifier.weight(1f))
+            Text(
+                "Camillian",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.weight(1f)
+            )
             TextButton(onClick = { showComposer = true }) {
                 Text("+", fontSize = 28.sp, fontWeight = FontWeight.Light)
             }
@@ -1365,7 +1370,9 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                     Spacer(Modifier.height(3.dp))
                     Text(
                         author.fullName?.substringBefore(" ")?.take(10) ?: "Member",
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -1434,6 +1441,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                                 Column(Modifier.weight(1f)) {
                                     Text(
                                         author?.fullName?.takeIf { it.isNotBlank() } ?: author?.email ?: "Member",
+                                        color = MaterialTheme.colorScheme.primary,
                                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                     )
                                     if (!post.province.isNullOrBlank()) {
