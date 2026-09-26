@@ -3869,9 +3869,20 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
                 Text(if (signingOut) localized("Signing out...", language) else localized("Logout", language))
             }
 
+            Text(
+                localized("Admin Dashboard", language),
+                style = MaterialTheme.typography.headlineMedium,
+                maxLines = 1,
+                softWrap = false
+            )
+            Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
-                Text(localized("Admin Dashboard", language), style = MaterialTheme.typography.headlineMedium)
-                Text("${localized("Administrator", language)}: ${profile.fullName ?: profile.email ?: "Admin"}")
+                Text(
+                    "${localized("Administrator", language)}: ${profile.fullName ?: profile.email ?: "Admin"}",
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis
+                )
             }
             LanguageSelector(selected = language, onSelected = onLanguageChange)
             TextButton(onClick = { loadMembers() }, enabled = !loading) {
