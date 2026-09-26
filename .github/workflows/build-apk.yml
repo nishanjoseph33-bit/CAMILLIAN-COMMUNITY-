@@ -5,6 +5,7 @@ name: Build Android APK
 # Verify message page navigation and two-way chat
 # Verify profile crop and login/home visual updates
 # Rebuild after compile fix
+# Verify province community profile requirements
 
 on:
   workflow_dispatch:
