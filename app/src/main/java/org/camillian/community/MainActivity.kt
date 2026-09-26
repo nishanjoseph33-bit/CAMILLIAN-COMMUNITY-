@@ -2085,7 +2085,8 @@ private fun FriendsScreen(
                 // The RPC atomically creates (or reuses) the private chat and returns its UUID.
                 val conversationId = Supabase.client.postgrest
                     .rpc("ensure_friend_conversation", buildJsonObject { put("target_user_id", memberId) })
-                    .decodeSingle<String>()
+                    .decodeSingle<PrivateConversationResult>()
+                    .conversationId
 
                 val member = members.firstOrNull { it.id == memberId }
                 onOpenChat(
@@ -2523,6 +2524,11 @@ private data class GroupConversationResult(
 )
 
 @Serializable
+private data class PrivateConversationResult(
+    @SerialName("conversation_id") val conversationId: String
+)
+
+@Serializable
 private data class ChatMessage(
     val id: String,
     @SerialName("conversation_id") val conversationId: String,
@@ -2586,7 +2592,8 @@ private fun MessagesScreen(
                 val conversationId = Supabase.client.postgrest.rpc(
                     "ensure_friend_conversation",
                     buildJsonObject { put("target_user_id", member.id) }
-                ).decodeSingle<String>()
+                ).decodeSingle<PrivateConversationResult>()
+                    .conversationId
                 val title = member.fullName?.takeIf { it.isNotBlank() }
                     ?: member.religiousName?.takeIf { it.isNotBlank() }
                     ?: member.email
