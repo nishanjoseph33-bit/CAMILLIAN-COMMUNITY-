@@ -3593,6 +3593,161 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
 }
 
 @Composable
+private fun SharePostDialog(
+    post: FeedPost,
+    friends: List<MemberProfile>,
+    sharing: Boolean,
+    onDismiss: () -> Unit,
+    onShare: (MemberProfile) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = { if (!sharing) onDismiss() },
+        title = { Text("Share post to a friend") },
+        text = {
+            if (friends.isEmpty()) {
+                Text("You have no accepted friends to share this post with.")
+            } else {
+                LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(friends, key = { it.id }) { friend ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable(enabled = !sharing) { onShare(friend) }.padding(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                modifier = Modifier.size(44.dp),
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            ) {
+                                if (!friend.avatarUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = friend.avatarUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier.clip(RoundedCornerShape(50)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Image(painterResource(R.drawable.camillian_logo), null, Modifier.padding(7.dp))
+                                }
+                            }
+                            Spacer(Modifier.width(10.dp))
+                            Text(friend.fullName?.takeIf { it.isNotBlank() } ?: friend.religiousName ?: "Member")
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss, enabled = !sharing) { Text("Cancel") }
+        }
+    )
+}
+
+@Composable
+private fun PublicMemberProfileScreen(
+    member: MemberProfile,
+    language: String,
+    onBack: () -> Unit
+) {
+    var posts by remember { mutableStateOf<List<FeedPost>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(member.id) {
+        try {
+            posts = Supabase.client.from("posts").select {
+                filter { filter("author_id", FilterOperator.EQ, member.id) }
+                order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+            }.decodeList<FeedPost>()
+        } finally {
+            loading = false
+        }
+    }
+
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back") }
+            Text("Member profile", style = MaterialTheme.typography.headlineSmall)
+        }
+        LazyColumn(
+            Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            item {
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                modifier = Modifier.size(86.dp),
+                                shape = RoundedCornerShape(50),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+                            ) {
+                                if (!member.avatarUrl.isNullOrBlank()) {
+                                    AsyncImage(model = member.avatarUrl, contentDescription = "Profile photo", modifier = Modifier.clip(RoundedCornerShape(50)), contentScale = ContentScale.Crop)
+                                } else {
+                                    Image(painterResource(R.drawable.camillian_logo), null, Modifier.padding(14.dp))
+                                }
+                            }
+                            Spacer(Modifier.width(14.dp))
+                            Text(member.fullName?.takeIf { it.isNotBlank() } ?: member.religiousName ?: "Member", style = MaterialTheme.typography.titleLarge)
+                        }
+                        ProfileDetailRow("Country", member.country?.takeIf { it.isNotBlank() } ?: member.place)
+                        ProfileDetailRow("Province", member.province)
+                        ProfileDetailRow("Community", member.community)
+                        ProfileDetailRow("Status", member.religiousStatus)
+                        ProfileDetailRow("Vocation", member.vocation)
+                        if (!member.bio.isNullOrBlank()) {
+                            Text("Bio", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                            Text(member.bio!!)
+                        }
+                    }
+                }
+            }
+            item { Text("Posts", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp)) }
+            if (loading) {
+                item { CircularProgressIndicator() }
+            } else if (posts.isEmpty()) {
+                item { Text("No posts yet.") }
+            } else {
+                items(posts, key = { it.id }) { post ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (!post.textContent.isNullOrBlank()) Text(post.textContent!!)
+                            if (!post.mediaUrl.isNullOrBlank()) {
+                                if (post.mediaType == "video" || post.kind == "video") {
+                                    AndroidView(
+                                        factory = { ctx -> VideoView(ctx).apply {
+                                            setMediaController(MediaController(ctx))
+                                            setVideoURI(Uri.parse(post.mediaUrl))
+                                            setOnPreparedListener { it.isLooping = true; start() }
+                                        }},
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 480.dp)
+                                    )
+                                } else {
+                                    AsyncImage(model = post.mediaUrl, contentDescription = "Post media", modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 480.dp), contentScale = ContentScale.Crop)
+                                }
+                            }
+                            Text(post.createdAt ?: "", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProfileDetailRow(label: String, value: String?) {
+    if (!value.isNullOrBlank()) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("$label:", fontWeight = FontWeight.SemiBold)
+            Text(value, modifier = Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
 private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language: String = "English", onLanguageChange: (String) -> Unit = {}, onProfileUpdated: (MemberProfile) -> Unit = {}, signingOut: Boolean = false) {
     var fullName by remember { mutableStateOf(profile.fullName.orEmpty()) }
     var religiousName by remember { mutableStateOf(profile.religiousName.orEmpty()) }
