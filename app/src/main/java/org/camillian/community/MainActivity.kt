@@ -263,7 +263,6 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
         inviteModeActive -> "invite"
         sessionLoading -> "loading"
         profile == null -> "login"
-        profile!!.memberRole == "admin" || profile!!.memberRole == "super_admin" -> "admin"
         else -> "home"
     }
 
@@ -322,12 +321,14 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
                         }
                     )
                     "login" -> LoginScreen(language = language, onLanguageChange = { language = it }, onApproved = { profile = it }, onMessage = { message = it }, initialMessage = message)
-                    "admin" -> AdminDashboard(profile!!, language = language, onLanguageChange = { language = it }, signingOut = signingOut, onLogout = {
-                        performLogout()
-                    })
-                    else -> CommunityShell(profile!!, language = language, onLanguageChange = { language = it }, onProfileUpdated = { updated -> profile = updated }, signingOut = signingOut, onLogout = {
-                        performLogout()
-                    })
+                    else -> CommunityShell(
+                        profile = profile!!,
+                        language = language,
+                        onLanguageChange = { language = it },
+                        onProfileUpdated = { updated -> profile = updated },
+                        signingOut = signingOut,
+                        onLogout = { performLogout() }
+                    )
                 }
             }
         }
@@ -1930,6 +1931,7 @@ private fun localized(key: String, language: String): String {
 
 @Composable
 private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, signingOut: Boolean = false, onLogout: () -> Unit) {
+    val isAdmin = profile.memberRole == "admin" || profile.memberRole == "super_admin"
     var tab by remember { mutableStateOf("Home") }
     var messageConversation by remember { mutableStateOf<Conversation?>(null) }
     var activeChat by remember { mutableStateOf<Conversation?>(null) }
@@ -1963,7 +1965,16 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
     Scaffold(
         bottomBar = {
             NavigationBar {
-                listOf("Home", "Friends", "Events", "Communities", "Messages", "Profile").forEach { item ->
+                val navigationItems = buildList {
+                    add("Home")
+                    add("Friends")
+                    add("Events")
+                    add("Communities")
+                    add("Messages")
+                    add("Profile")
+                    if (isAdmin) add("Dashboard")
+                }
+                navigationItems.forEach { item ->
                     NavigationBarItem(
                         selected = tab == item,
                         onClick = { tab = item },
@@ -1984,6 +1995,9 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                                             color = Color.Red
                                         ) {}
                                     }
+                                }
+                                "Dashboard" -> Box(Modifier.size(24.dp), contentAlignment = Alignment.Center) {
+                                    Text("D", fontWeight = FontWeight.Bold)
                                 }
                                 else -> Icon(Icons.Filled.Person, contentDescription = null)
                             }
@@ -2020,6 +2034,9 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                         onUnreadChanged = { hasUnreadMessages = it }
                     )
                     "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated, signingOut = signingOut)
+                    "Dashboard" -> if (isAdmin) {
+                        AdminDashboard(profile, language = language, onLanguageChange = onLanguageChange, signingOut = signingOut, onLogout = onLogout)
+                    }
                 }
             }
         }
