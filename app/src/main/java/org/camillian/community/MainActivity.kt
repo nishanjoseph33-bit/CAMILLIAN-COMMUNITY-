@@ -2369,7 +2369,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                                             translatingMessageId = item.id
                                             try {
                                                 translatedMessages = translatedMessages +
-                                                    (item.id to translateText(item.messageText, language))
+                                                    (item.id to translateText(item.messageText.orEmpty(), language))
                                             } catch (_: Exception) {
                                             } finally {
                                                 translatingMessageId = null
