@@ -3000,6 +3000,7 @@ private fun MessagesScreen(
     }
 }
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun ChatScreen(profile: MemberProfile, conversation: Conversation, language: String = "English", onBack: () -> Unit) {
     var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
