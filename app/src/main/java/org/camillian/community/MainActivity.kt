@@ -2551,7 +2551,57 @@ private fun MessagesScreen(
     var selectedMemberIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var creatingGroup by remember { mutableStateOf(false) }
     var groupMessage by remember { mutableStateOf("") }
+    var showSearch by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
+    var searchableMembers by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
+    var searchingMembers by remember { mutableStateOf(false) }
+    var startingConversationWith by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+
+    fun loadSearchMembers() {
+        if (searchingMembers || searchableMembers.isNotEmpty()) return
+        scope.launch {
+            searchingMembers = true
+            try {
+                searchableMembers = Supabase.client.from("profiles").select {
+                    filter { filter("member_status", FilterOperator.EQ, "approved") }
+                    order("full_name", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+                }.decodeList<MemberProfile>().filter { it.id != profile.id }
+            } catch (e: Exception) {
+                groupMessage = e.message ?: "Could not load members."
+            } finally {
+                searchingMembers = false
+            }
+        }
+    }
+
+    fun startSearchedConversation(member: MemberProfile) {
+        if (startingConversationWith != null) return
+        scope.launch {
+            startingConversationWith = member.id
+            groupMessage = ""
+            try {
+                val conversationId = Supabase.client.postgrest.rpc(
+                    "ensure_friend_conversation",
+                    buildJsonObject { put("target_user_id", member.id) }
+                ).decodeSingle<String>()
+                val title = member.fullName?.takeIf { it.isNotBlank() }
+                    ?: member.religiousName?.takeIf { it.isNotBlank() }
+                    ?: member.email
+                    ?: "Conversation"
+                selected = Conversation(conversationId, title, false)
+                showSearch = false
+                searchQuery = ""
+            } catch (e: Exception) {
+                groupMessage = userFacingSupabaseError(
+                    e,
+                    "You can start a conversation only with an accepted friend."
+                )
+            } finally {
+                startingConversationWith = null
+            }
+        }
+    }
 
     fun loadGroupMembers() {
         scope.launch {
@@ -2685,6 +2735,88 @@ private fun MessagesScreen(
             }
         }
         Spacer(Modifier.height(16.dp))
+        OutlinedTextField(
+            value = searchQuery,
+            onValueChange = { searchQuery = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text(localized("Search members", language)) },
+            placeholder = { Text(localized("Search by name or email", language)) },
+            leadingIcon = {
+                Icon(Icons.Filled.Search, contentDescription = localized("Search", language))
+            },
+            trailingIcon = {
+                if (searchQuery.isNotBlank()) {
+                    IconButton(onClick = { searchQuery = "" }) {
+                        Icon(Icons.Filled.Close, contentDescription = localized("Clear", language))
+                    }
+                }
+            }
+        )
+        if (searchQuery.isNotBlank()) {
+            LaunchedEffect(searchQuery) { loadSearchMembers() }
+            val results = searchableMembers.filter { member ->
+                val q = searchQuery.trim().lowercase()
+                listOfNotNull(member.fullName, member.religiousName, member.email)
+                    .any { it.lowercase().contains(q) }
+            }.take(20)
+            Spacer(Modifier.height(8.dp))
+            if (searchingMembers) {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            } else if (results.isEmpty()) {
+                Text(localized("No members found.", language))
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    items(results, key = { it.id }) { member ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth().clickable { startSearchedConversation(member) }
+                        ) {
+                            Row(
+                                Modifier.fillMaxWidth().padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (!member.avatarUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = member.avatarUrl,
+                                        contentDescription = member.fullName ?: "Profile picture",
+                                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(50)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Surface(
+                                        modifier = Modifier.size(44.dp),
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.surfaceVariant
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(Icons.Filled.Person, contentDescription = "Profile picture")
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        member.fullName?.takeIf { it.isNotBlank() }
+                                            ?: member.religiousName?.takeIf { it.isNotBlank() }
+                                            ?: "Member",
+                                        style = MaterialTheme.typography.titleSmall
+                                    )
+                                    member.email?.takeIf { it.isNotBlank() }?.let {
+                                        Text(it, style = MaterialTheme.typography.bodySmall)
+                                    }
+                                }
+                                if (startingConversationWith == member.id) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
         if (groupMessage.isNotBlank()) Text(groupMessage, color = MaterialTheme.colorScheme.primary)
 
         if (showCreateGroup) {
