@@ -2127,7 +2127,10 @@ private fun MessagesScreen(
 private fun ChatScreen(profile: MemberProfile, conversation: Conversation, language: String = "English", onBack: () -> Unit) {
     var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
     var composer by remember { mutableStateOf("") }
+    var pendingMediaUrl by remember { mutableStateOf<String?>(null) }
+    var receivingSticker by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
+    var composerEditText by remember { mutableStateOf<EditText?>(null) }
     var translatedMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var message by remember { mutableStateOf("") }
     var translatingMessageId by remember { mutableStateOf<String?>(null) }
