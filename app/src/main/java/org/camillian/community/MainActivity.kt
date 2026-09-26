@@ -148,6 +148,7 @@ private data class MemberProfile(
     @SerialName("religious_status") val religiousStatus: String? = null,
     val vocation: String? = null,
     val place: String? = null,
+    val country: String? = null,
     val province: String? = null,
     val delegation: String? = null,
     val community: String? = null,
@@ -1034,7 +1035,7 @@ private data class PostReaction(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HomeScreen(profile: MemberProfile, language: String = "English") {
+private fun HomeScreen(profile: MemberProfile, language: String = "English", onOpenProfile: (MemberProfile) -> Unit = {}) {
     var posts by remember { mutableStateOf<List<FeedPost>>(emptyList()) }
     var composer by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
@@ -1055,6 +1056,9 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     var editingPostId by remember { mutableStateOf<String?>(null) }
     var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
     var showNotifications by remember { mutableStateOf(false) }
+    var sharePost by remember { mutableStateOf<FeedPost?>(null) }
+    var shareFriends by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
+    var sharing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     LaunchedEffect(language) { translatedPosts = emptyMap(); translatingPostId = null }
     val context = LocalContext.current
@@ -1544,7 +1548,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Surface(
-                                    modifier = Modifier.size(46.dp),
+                                    modifier = Modifier.size(46.dp).clickable { author?.let(onOpenProfile) },
                                     shape = RoundedCornerShape(50),
                                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                                 ) {
@@ -1568,7 +1572,8 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                                     Text(
                                         author?.fullName?.takeIf { it.isNotBlank() } ?: author?.email ?: "Member",
                                         color = MaterialTheme.colorScheme.primary,
-                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                                        modifier = Modifier.clickable { author?.let(onOpenProfile) }
                                     )
                                     if (!post.province.isNullOrBlank()) {
                                         Text("Province: " + post.province, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
@@ -1662,6 +1667,25 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                                 TextButton(onClick = { commentPostId = post.id }) {
                                     Text(localized("Comment", language))
                                 }
+                                TextButton(onClick = {
+                                    sharePost = post
+                                    scope.launch {
+                                        try {
+                                            val requests = Supabase.client.from("friend_requests").select {
+                                                filter { filter("status", FilterOperator.EQ, "accepted") }
+                                            }.decodeList<FriendRequest>()
+                                            val ids = requests.mapNotNull {
+                                                when {
+                                                    it.senderId == profile.id -> it.receiverId
+                                                    it.receiverId == profile.id -> it.senderId
+                                                    else -> null
+                                                }
+                                            }.distinct()
+                                            shareFriends = if (ids.isEmpty()) emptyList() else Supabase.client.from("profiles").select()
+                                                .decodeList<MemberProfile>().filter { it.id in ids }
+                                        } catch (e: Exception) { message = e.message ?: "Could not load friends." }
+                                    }
+                                }) { Text(localized("Share", language)) }
                                 Spacer(Modifier.weight(1f))
                                 if (post.authorId == profile.id) {
                                     TextButton(onClick = { editPost(post) }) { Text(localized("Edit", language)) }
@@ -1678,6 +1702,33 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
 
     if (commentPostId != null) {
         CommentsDialog(postId = commentPostId!!, profile = profile, language = language, onDismiss = { commentPostId = null })
+    }
+    sharePost?.let { post ->
+        SharePostDialog(
+            post = post,
+            friends = shareFriends,
+            sharing = sharing,
+            onDismiss = { if (!sharing) sharePost = null },
+            onShare = { friend ->
+                scope.launch {
+                    sharing = true
+                    try {
+                        val conversationId = Supabase.client.postgrest.rpc(
+                            "ensure_friend_conversation",
+                            buildJsonObject { put("target_user_id", friend.id) }
+                        ).decodeAs<String>()
+                        Supabase.client.from("messages").insert(buildJsonObject {
+                            put("conversation_id", conversationId)
+                            put("sender_id", profile.id)
+                            put("message_text", "Shared a post from " + (authorProfiles[post.authorId]?.fullName ?: "Camillian member") + ": " + post.textContent.orEmpty())
+                            if (!post.mediaUrl.isNullOrBlank()) put("media_url", post.mediaUrl)
+                        })
+                        sharePost = null
+                    } catch (e: Exception) { message = e.message ?: "Could not share the post." }
+                    finally { sharing = false }
+                }
+            }
+        )
     }
 }
 
@@ -2000,6 +2051,7 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
     var tab by remember { mutableStateOf("Home") }
     var messageConversation by remember { mutableStateOf<Conversation?>(null) }
     var activeChat by remember { mutableStateOf<Conversation?>(null) }
+    var publicProfile by remember { mutableStateOf<MemberProfile?>(null) }
     var hasUnreadMessages by remember { mutableStateOf(false) }
 
 
@@ -2017,6 +2069,11 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
 
     // Open a private chat directly from Find Friends. This avoids routing through the
     // Messages tab, so the chat cannot be lost during AnimatedContent recomposition.
+    if (publicProfile != null) {
+        PublicMemberProfileScreen(member = publicProfile!!, language = language, onBack = { publicProfile = null })
+        return
+    }
+
     if (activeChat != null) {
         ChatScreen(
             profile = profile,
@@ -2109,7 +2166,7 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                     )
                 }
                 when (currentTab) {
-                    "Home" -> HomeScreen(profile, language)
+                    "Home" -> HomeScreen(profile, language, onOpenProfile = { publicProfile = it })
                     "Friends" -> FriendsScreen(profile, language, onOpenChat = { conversation ->
                         activeChat = conversation
                     })
@@ -3543,6 +3600,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
     var vocation by remember { mutableStateOf(profile.vocation.orEmpty()) }
     var phone by remember { mutableStateOf(profile.phone.orEmpty()) }
     var place by remember { mutableStateOf(profile.place.orEmpty()) }
+    var country by remember { mutableStateOf(profile.country.orEmpty()) }
     var province by remember { mutableStateOf(profile.province.orEmpty()) }
     var delegation by remember { mutableStateOf(profile.delegation.orEmpty()) }
     var community by remember { mutableStateOf(profile.community.orEmpty()) }
@@ -3651,6 +3709,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                 }
             }
             item { Text(profile.email ?: "") }
+            item { OutlinedTextField(country, { country = it }, Modifier.fillMaxWidth(), label = { Text(localized("Country", language)) }) }
             item { OutlinedTextField(fullName, { fullName = it }, Modifier.fillMaxWidth(), label = { Text(localized("Name *", language)) }) }
             item { OutlinedTextField(province, { province = it }, Modifier.fillMaxWidth(), label = { Text(localized("Province *", language)) }) }
             item {
@@ -3724,6 +3783,7 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                                     put("phone", phone.trim())
                                     put("place", place.trim())
                                     put("province", province.trim())
+                                    put("country", country.trim())
                                     put("delegation", delegation.trim())
                                     put("community", community.trim())
                                     put("ministry", ministry.trim())
