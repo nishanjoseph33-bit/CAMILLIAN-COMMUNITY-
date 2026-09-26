@@ -277,6 +277,7 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
     if (profile != null) MessageNotificationListener(profile!!)
 
     var showLaunchSplash by remember { mutableStateOf(!(recoveryMode || inviteMode)) }
+    var splashStage by remember { mutableStateOf(0) }
     var splashLeaving by remember { mutableStateOf(false) }
     val splashBlur by animateDpAsState(
         targetValue = if (splashLeaving) 18.dp else 0.dp,
@@ -286,7 +287,11 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
 
     LaunchedEffect(Unit) {
         if (!recoveryMode && !inviteMode) {
-            delay(1250)
+            // Stage 0: type the invocation. Stage 1: reveal the opening picture.
+            delay(2200)
+            splashStage = 1
+            delay(1200)
+            while (sessionLoading) delay(100)
             splashLeaving = true
             delay(550)
             showLaunchSplash = false
@@ -294,7 +299,7 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
     }
 
     if (showLaunchSplash) {
-        LaunchSplashScreen(blurRadius = splashBlur)
+        LaunchSplashScreen(stage = splashStage, blurRadius = splashBlur)
     } else {
         AppBackground {
             AnimatedContent(
@@ -432,19 +437,73 @@ private fun MessageNotificationListener(profile: MemberProfile) {
 }
 
 @Composable
-private fun LaunchSplashScreen(blurRadius: androidx.compose.ui.unit.Dp) {
+@Composable
+private fun LaunchSplashScreen(
+    stage: Int,
+    blurRadius: androidx.compose.ui.unit.Dp
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.camillian_background),
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .blur(blurRadius),
-            contentScale = ContentScale.Crop
+        if (stage == 0) {
+            TypingInvocationText()
+        } else {
+            Image(
+                painter = painterResource(id = R.drawable.camillian_background),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(blurRadius),
+                contentScale = ContentScale.Crop
+            )
+        }
+    }
+}
+
+@Composable
+private fun TypingInvocationText() {
+    var firstLine by remember { mutableStateOf("") }
+    var secondLine by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        val first = "ST. CAMILLUS"
+        val second = "pray for us"
+        for (index in 1..first.length) {
+            firstLine = first.take(index)
+            delay(85)
+        }
+        delay(220)
+        for (index in 1..second.length) {
+            secondLine = second.take(index)
+            delay(75)
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            firstLine,
+            style = MaterialTheme.typography.headlineLarge.copy(
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.5.sp
+            ),
+            textAlign = TextAlign.Center,
+            color = Color.White
+        )
+        Text(
+            secondLine,
+            style = MaterialTheme.typography.titleMedium.copy(
+                fontSize = 22.sp,
+                letterSpacing = 0.8.sp
+            ),
+            textAlign = TextAlign.Center,
+            color = Color.White.copy(alpha = 0.92f)
         )
     }
 }
