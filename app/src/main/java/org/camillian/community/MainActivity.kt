@@ -48,6 +48,8 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.darkColorScheme
@@ -2726,6 +2728,15 @@ private fun MessagesScreen(
                 Text(localized("Messages", language), style = MaterialTheme.typography.headlineMedium)
                 Text(localized("Private and community conversations. Tap a conversation to open the message page.", language))
             }
+            IconButton(onClick = {
+                showSearch = !showSearch
+                if (showSearch) loadSearchMembers() else searchQuery = ""
+            }) {
+                Icon(
+                    if (showSearch) Icons.Filled.Close else Icons.Filled.Search,
+                    contentDescription = localized(if (showSearch) "Close search" else "Search members", language)
+                )
+            }
             Button(onClick = {
                 groupMessage = ""
                 showCreateGroup = true
@@ -2735,7 +2746,8 @@ private fun MessagesScreen(
             }
         }
         Spacer(Modifier.height(16.dp))
-        OutlinedTextField(
+        if (showSearch) {
+            OutlinedTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
             modifier = Modifier.fillMaxWidth(),
@@ -2752,8 +2764,9 @@ private fun MessagesScreen(
                     }
                 }
             }
-        )
-        if (searchQuery.isNotBlank()) {
+            )
+        }
+        if (showSearch && searchQuery.isNotBlank()) {
             LaunchedEffect(searchQuery) { loadSearchMembers() }
             val results = searchableMembers.filter { member ->
                 val q = searchQuery.trim().lowercase()
