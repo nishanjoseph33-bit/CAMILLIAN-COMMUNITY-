@@ -1933,6 +1933,20 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
     var tab by remember { mutableStateOf("Home") }
     var messageConversation by remember { mutableStateOf<Conversation?>(null) }
     var activeChat by remember { mutableStateOf<Conversation?>(null) }
+    var hasUnreadMessages by remember { mutableStateOf(false) }
+
+
+    LaunchedEffect(profile.id) {
+        while (true) {
+            try {
+                val unread = Supabase.client.from("messages").select {
+                    filter { filter("sender_id", FilterOperator.NEQ, profile.id) }
+                }.decodeList<ChatMessage>().any { it.seenAt == null }
+                hasUnreadMessages = unread
+            } catch (_: Exception) {}
+            kotlinx.coroutines.delay(5000)
+        }
+    }
 
     // Open a private chat directly from Find Friends. This avoids routing through the
     // Messages tab, so the chat cannot be lost during AnimatedContent recomposition.
@@ -1959,7 +1973,18 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                                 "Friends" -> Icon(Icons.Filled.People, contentDescription = null)
                                 "Events" -> Icon(Icons.Filled.Event, contentDescription = null)
                                 "Communities" -> Icon(Icons.Filled.Group, contentDescription = null)
-                                "Messages" -> Icon(Icons.Filled.Chat, contentDescription = null)
+                                "Messages" -> Box {
+                                    Icon(Icons.Filled.Chat, contentDescription = null)
+                                    if (hasUnreadMessages) {
+                                        Surface(
+                                            modifier = Modifier
+                                                .size(9.dp)
+                                                .align(Alignment.TopEnd),
+                                            shape = RoundedCornerShape(50),
+                                            color = Color.Red
+                                        ) {}
+                                    }
+                                }
                                 else -> Icon(Icons.Filled.Person, contentDescription = null)
                             }
                         },
@@ -2422,8 +2447,21 @@ private fun MessagesScreen(
 ) {
     var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
     var conversationPeople by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
+    var unreadByConversation by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var selected by remember { mutableStateOf<Conversation?>(initialConversation) }
     var loading by remember { mutableStateOf(true) }
+
+    suspend fun refreshUnread() {
+        try {
+            val unread = Supabase.client.from("messages").select {
+                filter { filter("sender_id", FilterOperator.NEQ, profile.id) }
+            }.decodeList<ChatMessage>()
+                .filter { it.seenAt == null }
+                .groupingBy { it.conversationId }
+                .eachCount()
+            unreadByConversation = unread.mapValues { it.value > 0 }
+        } catch (_: Exception) {}
+    }
 
     LaunchedEffect(initialConversation?.id) {
         if (initialConversation != null) {
@@ -2465,6 +2503,11 @@ private fun MessagesScreen(
         } finally {
             loading = false
         }
+        refreshUnread()
+    }
+
+    LaunchedEffect(selected?.id) {
+        if (selected == null) refreshUnread()
     }
 
     if (selected != null) {
@@ -2490,28 +2533,39 @@ private fun MessagesScreen(
                             modifier = Modifier.fillMaxWidth().padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (!person?.avatarUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = person?.avatarUrl,
-                                    contentDescription = person?.fullName ?: "Profile picture",
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .clip(RoundedCornerShape(50)),
-                                    contentScale = ContentScale.Crop
-                                )
-                            } else {
-                                Surface(
-                                    modifier = Modifier.size(56.dp),
-                                    shape = RoundedCornerShape(50),
-                                    color = MaterialTheme.colorScheme.surfaceVariant
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = Icons.Filled.Person,
-                                            contentDescription = "Profile picture",
-                                            modifier = Modifier.size(32.dp)
-                                        )
+                            Box(modifier = Modifier.size(56.dp)) {
+                                if (!person?.avatarUrl.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = person?.avatarUrl,
+                                        contentDescription = person?.fullName ?: "Profile picture",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(50)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Surface(
+                                        modifier = Modifier.fillMaxSize(),
+                                        shape = RoundedCornerShape(50),
+                                        color = MaterialTheme.colorScheme.surfaceVariant
+                                    ) {
+                                        Box(contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.Filled.Person,
+                                                contentDescription = "Profile picture",
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                        }
                                     }
+                                }
+                                if (unreadByConversation[conversation.id] == true) {
+                                    Surface(
+                                        modifier = Modifier
+                                            .size(12.dp)
+                                            .align(Alignment.TopEnd),
+                                        shape = RoundedCornerShape(50),
+                                        color = Color.Red
+                                    ) {}
                                 }
                             }
                             Spacer(Modifier.width(14.dp))
