@@ -585,7 +585,6 @@ private fun LoginScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(horizontal = if (compact) 10.dp else 22.dp, vertical = if (compact) 14.dp else 22.dp)
-                .border(2.dp, Color.White, RoundedCornerShape(38.dp))
                 .padding(if (compact) 10.dp else 16.dp)
         ) {
             Card(
@@ -2025,7 +2024,22 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
             },
             label = "community-page-transition"
         ) { currentTab ->
-            Box(Modifier.fillMaxSize().padding(padding)) {
+            val pageBackground = when (currentTab) {
+                "Home" -> Color.Transparent
+                "Friends" -> Color(0xFF101B2D)
+                "Events" -> Color(0xFF10251F)
+                "Communities" -> Color(0xFF21152F)
+                "Messages" -> Color(0xFF151B31)
+                "Profile" -> Color(0xFF10252A)
+                "Dashboard" -> Color(0xFF2A2112)
+                else -> Color.Transparent
+            }
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(pageBackground)
+            ) {
                 when (currentTab) {
                     "Home" -> HomeScreen(profile, language)
                     "Friends" -> FriendsScreen(profile, language, onOpenChat = { conversation ->
