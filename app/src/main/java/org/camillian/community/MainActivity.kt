@@ -2016,7 +2016,8 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                         profile,
                         language,
                         initialConversation = messageConversation,
-                        onInitialConversationConsumed = { messageConversation = null }
+                        onInitialConversationConsumed = { messageConversation = null },
+                        onUnreadChanged = { hasUnreadMessages = it }
                     )
                     "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated, signingOut = signingOut)
                 }
@@ -2443,7 +2444,8 @@ private fun MessagesScreen(
     profile: MemberProfile,
     language: String = "English",
     initialConversation: Conversation? = null,
-    onInitialConversationConsumed: () -> Unit = {}
+    onInitialConversationConsumed: () -> Unit = {},
+    onUnreadChanged: (Boolean) -> Unit = {}
 ) {
     var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
     var conversationPeople by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
@@ -2460,6 +2462,7 @@ private fun MessagesScreen(
                 .groupingBy { it.conversationId }
                 .eachCount()
             unreadByConversation = unread.mapValues { it.value > 0 }
+            onUnreadChanged(unread.isNotEmpty())
         } catch (_: Exception) {}
     }
 
@@ -2508,6 +2511,10 @@ private fun MessagesScreen(
 
     LaunchedEffect(selected?.id) {
         if (selected == null) refreshUnread()
+        else {
+            kotlinx.coroutines.delay(700)
+            refreshUnread()
+        }
     }
 
     if (selected != null) {
