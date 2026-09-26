@@ -70,6 +70,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -465,20 +468,22 @@ private fun LaunchSplashScreen(
 
 @Composable
 private fun TypingInvocationText() {
-    var firstLine by remember { mutableStateOf("") }
-    var secondLine by remember { mutableStateOf("") }
+    val first = "ST. CAMILLUS"
+    val second = "pray for us"
+    var firstCount by remember { mutableIntStateOf(0) }
+    var secondCount by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
-        val first = "ST. CAMILLUS"
-        val second = "pray for us"
+        // Handwritten cursive write-on: each character appears as if it is being
+        // written by hand, rather than the previous typewriter-style reveal.
         for (index in 1..first.length) {
-            firstLine = first.take(index)
-            delay(85)
+            firstCount = index
+            delay(115)
         }
-        delay(220)
+        delay(300)
         for (index in 1..second.length) {
-            secondLine = second.take(index)
-            delay(75)
+            secondCount = index
+            delay(125)
         }
     }
 
@@ -487,28 +492,61 @@ private fun TypingInvocationText() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Text(
-            firstLine,
-            style = MaterialTheme.typography.headlineLarge.copy(
-                fontSize = 34.sp,
-                fontWeight = FontWeight.Medium,
-                letterSpacing = 1.5.sp
-            ),
-            textAlign = TextAlign.Center,
-            color = Color.White
+        HandwrittenWriteOnText(
+            text = first,
+            visibleCount = firstCount,
+            fontSize = 42.sp,
+            letterSpacing = 0.5.sp
         )
-        Text(
-            secondLine,
-            style = MaterialTheme.typography.titleMedium.copy(
-                fontSize = 22.sp,
-                letterSpacing = 0.8.sp
-            ),
-            textAlign = TextAlign.Center,
-            color = Color.White.copy(alpha = 0.92f)
+        Spacer(Modifier.height(2.dp))
+        HandwrittenWriteOnText(
+            text = second,
+            visibleCount = secondCount,
+            fontSize = 25.sp,
+            letterSpacing = 0.2.sp
         )
     }
 }
 
+@Composable
+private fun HandwrittenWriteOnText(
+    text: String,
+    visibleCount: Int,
+    fontSize: androidx.compose.ui.unit.TextUnit,
+    letterSpacing: androidx.compose.ui.unit.TextUnit
+) {
+    Row(
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        text.forEachIndexed { index, character ->
+            if (index < visibleCount) {
+                val targetAlpha = 1f
+                val alpha by animateFloatAsState(
+                    targetValue = targetAlpha,
+                    animationSpec = tween(
+                        durationMillis = 220,
+                        easing = FastOutSlowInEasing
+                    ),
+                    label = "handwritten-alpha-$index"
+                )
+                Text(
+                    text = character.toString(),
+                    fontFamily = FontFamily.Cursive,
+                    fontSize = fontSize,
+                    fontWeight = FontWeight.Normal,
+                    letterSpacing = letterSpacing,
+                    color = Color.White.copy(alpha = alpha),
+                    modifier = Modifier
+                        .graphicsLayer(
+                            alpha = alpha,
+                            translationX = if (index == visibleCount - 1) 2f else 0f
+                        )
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun AppBackground(content: @Composable () -> Unit) {
