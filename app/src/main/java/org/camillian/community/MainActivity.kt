@@ -3011,6 +3011,8 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
     var message by remember { mutableStateOf("") }
     var translatingMessageId by remember { mutableStateOf<String?>(null) }
     var replyingTo by remember { mutableStateOf<ChatMessage?>(null) }
+    var editingMessageId by remember { mutableStateOf<String?>(null) }
+    var showMessageActions by remember { mutableStateOf<ChatMessage?>(null) }
     var otherMemberName by remember { mutableStateOf<String?>(null) }
     var otherMemberAvatarUrl by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -3046,17 +3048,26 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
         scope.launch {
             sending = true
             try {
-                Supabase.client.from("messages").insert(buildJsonObject {
-                    put("conversation_id", conversation.id)
+                if (editingMessageId != null) {
+                    Supabase.client.from("messages").update(
+                        buildJsonObject { put("message_text", text) }
+                    ) {
+                        filter { filter("id", FilterOperator.EQ, editingMessageId!!) }
+                    }
+                } else {
+                    Supabase.client.from("messages").insert(buildJsonObject {
+                        put("conversation_id", conversation.id)
                     put("sender_id", profile.id)
                     put("message_text", text)
                     put("media_url", mediaUrl)
                     if (replyingTo != null) put("reply_to_message_id", replyingTo!!.id)
-                })
+                    })
+                }
                 composerEditText?.setText("")
                 composer = ""
                 pendingMediaUrl = null
                 replyingTo = null
+                editingMessageId = null
                 loadMessages()
             } catch (e: Exception) {
                 message = userFacingSupabaseError(e, "Could not send the message.")
@@ -3212,7 +3223,11 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                                 },
                                 onDragCancel = { dragOffset = 0f }
                             )
-                        },
+                        }
+                        .combinedClickable(
+                            onClick = {},
+                            onLongClick = { if (mine) showMessageActions = item }
+                        ),
                     horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
                 ) {
                     Card(
@@ -3312,6 +3327,43 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                     }
                 }
             }
+        }
+
+        showMessageActions?.let { selectedMessage ->
+            AlertDialog(
+                onDismissRequest = { showMessageActions = null },
+                title = { Text(localized("Message options", language)) },
+                text = { Text(selectedMessage.messageText?.takeIf { it.isNotBlank() } ?: localized("This message has no editable text.", language)) },
+                confirmButton = {
+                    Row {
+                        if (!selectedMessage.messageText.isNullOrBlank()) {
+                            TextButton(onClick = {
+                                composerEditText?.setText(selectedMessage.messageText)
+                                composerEditText?.setSelection(selectedMessage.messageText!!.length)
+                                editingMessageId = selectedMessage.id
+                                showMessageActions = null
+                            }) { Text(localized("Edit", language)) }
+                        }
+                        TextButton(onClick = {
+                            scope.launch {
+                                try {
+                                    Supabase.client.from("messages").delete {
+                                        filter { filter("id", FilterOperator.EQ, selectedMessage.id) }
+                                    }
+                                    showMessageActions = null
+                                    loadMessages()
+                                } catch (e: Exception) {
+                                    message = userFacingSupabaseError(e, "Could not delete the message.")
+                                    showMessageActions = null
+                                }
+                            }
+                        }) { Text(localized("Delete", language)) }
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showMessageActions = null }) { Text(localized("Cancel", language)) }
+                }
+            )
         }
 
         replyingTo?.let { reply ->
