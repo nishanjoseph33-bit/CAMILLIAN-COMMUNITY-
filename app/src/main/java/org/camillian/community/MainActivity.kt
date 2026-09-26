@@ -3200,6 +3200,31 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                         shape = RoundedCornerShape(18.dp)
                     ) {
                         Column(Modifier.padding(12.dp)) {
+                            item.replyToMessageId?.let { replyId ->
+                                messages.firstOrNull { it.id == replyId }?.let { replied ->
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.55f),
+                                        shape = RoundedCornerShape(10.dp)
+                                    ) {
+                                        Column(Modifier.padding(8.dp)) {
+                                            Text(
+                                                localized("Reply", language),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                            Text(
+                                                replied.messageText?.takeIf { it.isNotBlank() }
+                                                    ?: if (!replied.mediaUrl.isNullOrBlank()) localized("Sticker", language) else localized("Message", language),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                                style = MaterialTheme.typography.bodySmall
+                                            )
+                                        }
+                                    }
+                                    Spacer(Modifier.height(6.dp))
+                                }
+                            }
                             item.mediaUrl?.takeIf { it.isNotBlank() }?.let { media ->
                                 AsyncImage(model = media, contentDescription = "Sticker", modifier = Modifier.sizeIn(maxWidth = 220.dp, maxHeight = 260.dp), contentScale = ContentScale.Fit)
                                 Spacer(Modifier.height(6.dp))
