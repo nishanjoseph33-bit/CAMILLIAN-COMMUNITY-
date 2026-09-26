@@ -2516,6 +2516,11 @@ private data class ConversationMember(
 )
 
 @Serializable
+private data class GroupConversationResult(
+    @SerialName("conversation_id") val conversationId: String
+)
+
+@Serializable
 private data class ChatMessage(
     val id: String,
     @SerialName("conversation_id") val conversationId: String,
@@ -2567,7 +2572,7 @@ private fun MessagesScreen(
             creatingGroup = true
             groupMessage = ""
             try {
-                val conversationId = Supabase.client.postgrest.rpc(
+                val result = Supabase.client.postgrest.rpc(
                     "create_group_conversation",
                     buildJsonObject {
                         put("group_title", groupName.trim())
@@ -2575,7 +2580,8 @@ private fun MessagesScreen(
                             selectedMemberIds.map { kotlinx.serialization.json.JsonPrimitive(it) }
                         ))
                     }
-                ).decodeSingle<String>()
+                ).decodeSingle<GroupConversationResult>()
+                val conversationId = result.conversationId
                 val newConversation = Conversation(conversationId, groupName.trim(), true)
                 conversations = conversations + newConversation
                 selected = newConversation
@@ -2620,8 +2626,12 @@ private fun MessagesScreen(
                 conversations = Supabase.client.from("conversations").select().decodeList<Conversation>()
                     .filter { it.id in ids }
 
-                val membersByConversation = memberships.groupBy { it.conversationId }
-                val otherIds = memberships
+                // Load all memberships for the user's conversations so private chats can show the other member.
+                val allMemberships = Supabase.client.from("conversation_members").select()
+                    .decodeList<ConversationMember>()
+                    .filter { it.conversationId in ids }
+                val membersByConversation = allMemberships.groupBy { it.conversationId }
+                val otherIds = allMemberships
                     .filter { it.userId != profile.id }
                     .map { it.userId }
                     .toSet()
@@ -2632,10 +2642,11 @@ private fun MessagesScreen(
                         .filter { it.id in otherIds }
                         .associateBy { it.id }
 
-                    conversationPeople = membersByConversation.mapValues { (_, members) ->
-                        members.firstOrNull { it.userId != profile.id }?.userId?.let { people[it] }
-                    }.mapNotNull { (conversationId, person) ->
-                        person?.let { conversationId to it }
+                    conversationPeople = membersByConversation.mapNotNull { (conversationId, members) ->
+                        members.firstOrNull { it.userId != profile.id }
+                            ?.userId
+                            ?.let { people[it] }
+                            ?.let { person -> conversationId to person }
                     }.toMap()
                 }
             }
