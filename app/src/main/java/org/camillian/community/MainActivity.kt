@@ -2461,6 +2461,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
     var message by remember { mutableStateOf("") }
     var translatingMessageId by remember { mutableStateOf<String?>(null) }
     var otherMemberName by remember { mutableStateOf<String?>(null) }
+    var otherMemberAvatarUrl by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun loadMessages() {
@@ -2519,6 +2520,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                     filter { filter("id", FilterOperator.EQ, otherId) }
                 }.decodeList<MemberProfile>().firstOrNull()
                 otherMemberName = other?.fullName?.takeIf { it.isNotBlank() }
+                otherMemberAvatarUrl = other?.avatarUrl
             }
         } catch (_: Exception) {
         }
@@ -2543,9 +2545,32 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = onBack) { Text(localized("Back", language)) }
+                Surface(
+                    modifier = Modifier.size(46.dp),
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
+                ) {
+                    if (!otherMemberAvatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = otherMemberAvatarUrl,
+                            contentDescription = otherMemberName ?: localized("Profile photo", language),
+                            modifier = Modifier.clip(RoundedCornerShape(50)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Image(
+                            painter = painterResource(id = R.drawable.camillian_logo),
+                            contentDescription = localized("Profile photo", language),
+                            modifier = Modifier.padding(7.dp),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+                Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
                         otherMemberName ?: conversation.title ?: localized("Conversation", language),
+                        color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
                     )
