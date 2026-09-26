@@ -3997,7 +3997,149 @@ private fun AdminTools(profile: MemberProfile, language: String = "English") {
     val scope = rememberCoroutineScope()
 
     Card(Modifier.fillMaxWidth()) {
-        Column(
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text(localized("Administration tools", language), style = MaterialTheme.typography.titleLarge)
+            Text(localized("Invite a member by email", language), style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(inviteEmail, { inviteEmail = it }, Modifier.fillMaxWidth(), label = { Text(localized("Member email", language)) }, singleLine = true)
+            Button(enabled = !inviteSending && inviteEmail.contains("@"), onClick = {
+                scope.launch {
+                    inviteSending = true
+                    inviteMessage = ""
+                    try {
+                        Supabase.client.functions.invoke("admin-invite-member", buildJsonObject { put("email", inviteEmail.trim()) })
+                        inviteMessage = "Invitation email sent."
+                        inviteEmail = ""
+                    } catch (e: Exception) {
+                        inviteMessage = e.message ?: "Could not send invitation."
+                    } finally { inviteSending = false }
+                }
+            }) { Text(if (inviteSending) localized("Sending...", language) else localized("Send invitation", language)) }
+            if (inviteMessage.isNotBlank()) Text(inviteMessage, color = MaterialTheme.colorScheme.primary)
+
+            HorizontalDivider()
+            Text(localized("Legacy invitation code", language), style = MaterialTheme.typography.titleMedium)
+            OutlinedTextField(inviteCode, { inviteCode = it }, Modifier.fillMaxWidth(), label = { Text(localized("New invitation code", language)) })
+            Button(enabled = !busy && inviteCode.length >= 6, onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        Supabase.client.postgrest.rpc("admin_create_invite", buildJsonObject {
+                            put("plain_code", inviteCode.trim())
+                            put("invite_description", "Camillian member invitation")
+                            put("invite_max_uses", 1)
+                        })
+                        message = "Invitation code created."
+                        inviteCode = ""
+                    } catch (e: Exception) { message = e.message ?: "Could not create invitation code." }
+                    finally { busy = false }
+                }
+            }) { Text(localized("Create invitation code", language)) }
+
+            HorizontalDivider()
+            OutlinedTextField(announcement, { announcement = it }, Modifier.fillMaxWidth(), minLines = 3, label = { Text(localized("Announcement / news", language)) })
+            Button(enabled = !busy && announcement.isNotBlank(), onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        Supabase.client.postgrest.rpc("admin_create_post", buildJsonObject {
+                            put("post_kind", "announcement")
+                            put("post_text", announcement.trim())
+                        })
+                        message = "Announcement published."
+                        announcement = ""
+                    } catch (e: Exception) { message = e.message ?: "Could not publish announcement." }
+                    finally { busy = false }
+                }
+            }) { Text(localized("Publish announcement", language)) }
+
+            HorizontalDivider()
+            OutlinedTextField(eventTitle, { eventTitle = it }, Modifier.fillMaxWidth(), label = { Text(localized("Event title", language)) })
+            OutlinedTextField(eventLocation, { eventLocation = it }, Modifier.fillMaxWidth(), label = { Text(localized("Event location", language)) })
+            OutlinedTextField(eventDescription, { eventDescription = it }, Modifier.fillMaxWidth(), minLines = 2, label = { Text(localized("Event description", language)) })
+            Button(enabled = !busy && eventTitle.isNotBlank(), onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        Supabase.client.postgrest.rpc("admin_create_event", buildJsonObject {
+                            put("event_title", eventTitle.trim())
+                            put("event_description", eventDescription.trim())
+                            put("event_location", eventLocation.trim())
+                        })
+                        message = "Event published."
+                        eventTitle = ""; eventLocation = ""; eventDescription = ""
+                    } catch (e: Exception) { message = e.message ?: "Could not create event." }
+                    finally { busy = false }
+                }
+            }) { Text(localized("Create event", language)) }
+
+            if (message.isNotBlank()) Text(message, color = MaterialTheme.colorScheme.primary)
+        }
+    }
+}
+
+@Composable
+private fun LanguageSelector(selected: String = "English", onSelected: (String) -> Unit = {}) {
+    val languages = listOf(
+        "English", "Italiano", "Español", "Português",
+        "Français", "Deutsch", "Tiếng Việt", "Filipino"
+    )
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) { Text(localized("Language", selected) + ": " + selected) }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            languages.forEach { language ->
+                DropdownMenuItem(
+                    text = { Text(language) },
+                    onClick = { onSelected(language); expanded = false }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun AdminDashboard(profile: MemberProfile, language: String = "English", onLanguageChange: (String) -> Unit = {}, signingOut: Boolean = false, onLogout: () -> Unit) {
+    var status by remember { mutableStateOf("pending") }
+    var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
+    var message by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(false) }
+    var actionMemberId by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val scrollState = rememberScrollState()
+
+    fun loadMembers() {
+        scope.launch {
+            loading = true
+            try {
+                members = Supabase.client.from("profiles").select {
+                    filter { filter("member_status", FilterOperator.EQ, status) }
+                }.decodeList<MemberProfile>()
+                message = ""
+            } catch (e: Exception) {
+                message = e.message ?: "Could not load members."
+            } finally { loading = false }
+        }
+    }
+
+    fun changeStatus(member: MemberProfile, newStatus: String) {
+        scope.launch {
+            actionMemberId = member.id
+            try {
+                Supabase.client.postgrest.rpc("admin_set_member_status", buildJsonObject {
+                    put("target_profile_id", member.id)
+                    put("new_status", newStatus)
+                })
+                message = "Member status changed to $newStatus."
+                loadMembers()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not change member status."
+            } finally { actionMemberId = null }
+        }
+    }
+
+    LaunchedEffect(status) { loadMembers() }
+
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(scrollState)
@@ -4110,3 +4252,4 @@ private fun AdminTools(profile: MemberProfile, language: String = "English") {
         Spacer(Modifier.height(32.dp))
     }
 }
+
