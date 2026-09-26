@@ -64,3 +64,5 @@ jobs:
         with:
           name: camillian-community-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
+
+# Edit delete message verification
