@@ -453,6 +453,21 @@ private fun LaunchSplashScreen(
             .background(Color.Black)
     ) {
         if (stage == 0) {
+            // Keep the opening invocation over the same full-screen picture,
+            // but make the picture a subtle watermark so the writing remains
+            // the visual focus.
+            Image(
+                painter = painterResource(id = R.drawable.camillian_background),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(alpha = 0.12f),
+                contentScale = ContentScale.Crop
+            )
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = Color.Black.copy(alpha = 0.58f)
+            ) {}
             TypingInvocationText()
         } else {
             Image(
