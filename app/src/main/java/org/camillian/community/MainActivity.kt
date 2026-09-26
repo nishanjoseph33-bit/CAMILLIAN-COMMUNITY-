@@ -2297,20 +2297,34 @@ private fun FriendsScreen(
                         }
                         Spacer(Modifier.height(10.dp))
                         when (statuses[member.id]) {
-                            "friends" -> Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(localized("Friends", language), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-                                Button(
-                                    onClick = { openFriendChat(member.id) },
-                                    enabled = openingChatMemberId == null
-                                ) {
-                                    Text(
-                                        if (openingChatMemberId == member.id) localized("Opening...", language)
-                                        else localized("Message", language)
-                                    )
+                            "friends" -> Text(
+                                localized("Friends", language),
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            "outgoing" -> Text(localized("Request sent", language), color = MaterialTheme.colorScheme.secondary)
+                            "incoming" -> {
+                                val request = incoming.firstOrNull { it.senderId == member.id }
+                                if (request != null) {
+                                    Button(onClick = {
+                                        scope.launch {
+                                            try {
+                                                Supabase.client.postgrest.rpc("respond_friend_request", buildJsonObject {
+                                                    put("request_id", request.id)
+                                                    put("accept_request", true)
+                                                })
+                                                statuses = statuses + (member.id to "friends")
+                                                incoming = incoming.filterNot { it.id == request.id }
+                                                message = ""
+                                            } catch (e: Exception) {
+                                                message = e.message ?: "Could not accept friend request."
+                                            }
+                                        }
+                                    }) { Text(localized("Accept", language)) }
+                                } else {
+                                    Text(localized("This member sent you a request", language), color = MaterialTheme.colorScheme.secondary)
                                 }
                             }
-                            "outgoing" -> Text(localized("Request sent", language), color = MaterialTheme.colorScheme.secondary)
-                            "incoming" -> Text(localized("This member sent you a request", language), color = MaterialTheme.colorScheme.secondary)
                             else -> Button(onClick = {
                                 CoroutineScope(Dispatchers.Main).launch {
                                     try {
