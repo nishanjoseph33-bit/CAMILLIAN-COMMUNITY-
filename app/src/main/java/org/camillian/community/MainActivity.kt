@@ -8,11 +8,14 @@ import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import android.net.Uri
+import android.widget.MediaController
+import android.widget.VideoView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.ComponentActivity
 import androidx.core.app.NotificationCompat
 import androidx.activity.compose.setContent
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -82,12 +85,14 @@ import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.Json
 import org.json.JSONArray
+import java.io.File
 import kotlinx.serialization.json.put
 
 private val translationClient = HttpClient(Android)
@@ -984,7 +989,20 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
     val context = LocalContext.current
     val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         mediaUri = uri
-        mediaKind = if (uri?.toString()?.contains("video", ignoreCase = true) == true) "video" else "photo"
+        if (uri == null) {
+            mediaKind = null
+        } else {
+            val mime = context.contentResolver.getType(uri).orEmpty()
+            mediaKind = when {
+                mime.startsWith("video/") -> "video"
+                mime.startsWith("image/") -> "photo"
+                else -> null
+            }
+            if (mediaKind == null) {
+                mediaUri = null
+                message = "Please select a photo or video file."
+            }
+        }
     }
 
     fun loadFeed(showFullLoading: Boolean = true, onComplete: (() -> Unit)? = null) {
@@ -1140,22 +1158,49 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                 var mediaUrl: String? = null
                 if (mediaUri != null) {
                     val uri = mediaUri!!
-                    val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
-                        ?: error("Could not read selected media.")
                     val mime = context.contentResolver.getType(uri).orEmpty()
-                    val extension = if (mediaKind == "video") {
-                        if (mime.contains("quicktime")) "mov" else "mp4"
-                    } else {
-                        when {
-                            mime.contains("png") -> "png"
-                            mime.contains("webp") -> "webp"
-                            else -> "jpg"
-                        }
+                    val kind = mediaKind ?: when {
+                        mime.startsWith("video/") -> "video"
+                        mime.startsWith("image/") -> "photo"
+                        else -> null
+                    } ?: error("Please select a photo or video.")
+
+                    val extension = when {
+                        kind == "video" && mime.contains("quicktime") -> "mov"
+                        kind == "video" -> "mp4"
+                        mime.contains("png") -> "png"
+                        mime.contains("webp") -> "webp"
+                        else -> "jpg"
                     }
-                    val path = profile.id + "/posts/" + System.currentTimeMillis() + "." + extension
-                    Supabase.client.storage.from("camillian-media").upload(path, bytes) { upsert = false }
-                    mediaUrl = Supabase.client.storage.from("camillian-media").publicUrl(path)
+
+                    // Copy the selected content to a local file so large videos are
+                    // never loaded entirely into memory.
+                    val tempFile = withContext(Dispatchers.IO) {
+                        val file = File.createTempFile("camillian-upload-", ".$extension", context.cacheDir)
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            file.outputStream().use { output -> input.copyTo(output) }
+                        } ?: error("Could not read selected media.")
+                        file
+                    }
+
+                    try {
+                        val path = profile.id + "/posts/" + System.currentTimeMillis() + "." + extension
+                        val bucket = Supabase.client.storage.from("camillian-media")
+
+                        if (kind == "video" || tempFile.length() > 6L * 1024L * 1024L) {
+                            // Supabase recommends resumable uploads for files over 6 MB.
+                            val upload = bucket.resumable.createOrContinueUpload(path, tempFile)
+                            upload.startOrResumeUploading()
+                        } else {
+                            bucket.upload(path, tempFile, upsert = false)
+                        }
+
+                        mediaUrl = bucket.publicUrl(path)
+                    } finally {
+                        tempFile.delete()
+                    }
                 }
+
                 Supabase.client.from("posts").insert(buildJsonObject {
                     put("author_id", profile.id)
                     put("kind", mediaKind ?: "text")
@@ -1167,10 +1212,13 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                 composer = ""
                 mediaUri = null
                 mediaKind = null
+                message = ""
                 loadFeed()
             } catch (e: Exception) {
                 message = e.message ?: "Could not publish your post."
-            } finally { posting = false }
+            } finally {
+                posting = false
+            }
         }
     }
 
@@ -1452,12 +1500,30 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                             }
 
                             if (!post.mediaUrl.isNullOrBlank()) {
-                                AsyncImage(
-                                    model = post.mediaUrl,
-                                    contentDescription = "Post media",
-                                    modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
-                                    contentScale = ContentScale.Crop
-                                )
+                                if (post.mediaType == "video" || post.kind == "video") {
+                                    AndroidView(
+                                        factory = { viewContext ->
+                                            VideoView(viewContext).apply {
+                                                setMediaController(MediaController(viewContext))
+                                                setVideoURI(Uri.parse(post.mediaUrl))
+                                                setOnPreparedListener { player ->
+                                                    player.isLooping = true
+                                                    start()
+                                                }
+                                            }
+                                        },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(min = 220.dp, max = 520.dp)
+                                    )
+                                } else {
+                                    AsyncImage(
+                                        model = post.mediaUrl,
+                                        contentDescription = "Post media",
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
                             }
 
                             if (!post.textContent.isNullOrBlank()) {
