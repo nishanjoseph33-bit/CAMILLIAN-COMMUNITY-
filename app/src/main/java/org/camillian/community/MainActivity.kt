@@ -32,6 +32,8 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.RoundedCornerShape
 import coil.compose.AsyncImage
 import androidx.compose.foundation.layout.*
@@ -2537,7 +2539,8 @@ private data class ChatMessage(
     @SerialName("media_url") val mediaUrl: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("delivered_at") val deliveredAt: String? = null,
-    @SerialName("seen_at") val seenAt: String? = null
+    @SerialName("seen_at") val seenAt: String? = null,
+    @SerialName("reply_to_message_id") val replyToMessageId: String? = null
 )
 
 @Composable
@@ -2979,6 +2982,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
     var translatedMessages by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var message by remember { mutableStateOf("") }
     var translatingMessageId by remember { mutableStateOf<String?>(null) }
+    var replyingTo by remember { mutableStateOf<ChatMessage?>(null) }
     var otherMemberName by remember { mutableStateOf<String?>(null) }
     var otherMemberAvatarUrl by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
@@ -3019,10 +3023,12 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                     put("sender_id", profile.id)
                     put("message_text", text)
                     put("media_url", mediaUrl)
+                    if (replyingTo != null) put("reply_to_message_id", replyingTo!!.id)
                 })
                 composerEditText?.setText("")
                 composer = ""
                 pendingMediaUrl = null
+                replyingTo = null
                 loadMessages()
             } catch (e: Exception) {
                 message = userFacingSupabaseError(e, "Could not send the message.")
@@ -3161,12 +3167,30 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
         ) {
             items(messages, key = { it.id }) { item ->
                 val mine = item.senderId == profile.id
+                var dragOffset by remember(item.id) { mutableFloatStateOf(0f) }
                 Row(
-                    Modifier.fillMaxWidth(),
+                    Modifier
+                        .fillMaxWidth()
+                        .pointerInput(item.id) {
+                            detectHorizontalDragGestures(
+                                onHorizontalDrag = { _, dragAmount ->
+                                    if (dragAmount > 0) {
+                                        dragOffset = (dragOffset + dragAmount).coerceIn(0f, 140f)
+                                    }
+                                },
+                                onDragEnd = {
+                                    if (dragOffset >= 80f) replyingTo = item
+                                    dragOffset = 0f
+                                },
+                                onDragCancel = { dragOffset = 0f }
+                            )
+                        },
                     horizontalArrangement = if (mine) Arrangement.End else Arrangement.Start
                 ) {
                     Card(
-                        modifier = Modifier.widthIn(max = 310.dp),
+                        modifier = Modifier
+                            .widthIn(max = 310.dp)
+                            .offset(x = (dragOffset / 4).dp),
                         colors = CardDefaults.cardColors(
                             containerColor = if (mine)
                                 MaterialTheme.colorScheme.primaryContainer
@@ -3232,6 +3256,36 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                                 )
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        replyingTo?.let { reply ->
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            localized("Replying to message", language),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            reply.messageText?.takeIf { it.isNotBlank() }
+                                ?: if (!reply.mediaUrl.isNullOrBlank()) localized("Sticker", language) else localized("Message", language),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    IconButton(onClick = { replyingTo = null }) {
+                        Icon(Icons.Filled.Close, contentDescription = localized("Cancel reply", language))
                     }
                 }
             }
