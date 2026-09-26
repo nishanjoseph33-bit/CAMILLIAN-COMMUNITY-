@@ -6,11 +6,15 @@ name: Build Android APK
 # Verify profile crop and login/home visual updates
 # Rebuild after compile fix
 # Verify province community profile requirements
+# Friends page status-only UI
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -36,6 +40,17 @@ jobs:
         with:
           packages: 'platform-tools platforms;android-36 build-tools;36.0.0'
 
+      - name: Apply Friends page status-only UI
+        run: |
+          python3 scripts/update_friends_page.py
+          if ! git diff --quiet -- app/src/main/java/org/camillian/community/MainActivity.kt; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/src/main/java/org/camillian/community/MainActivity.kt
+            git commit -m "Remove message action from Find Friends"
+            git push
+          fi
+
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -49,13 +64,3 @@ jobs:
         with:
           name: camillian-community-debug-apk
           path: app/build/outputs/apk/debug/app-debug.apk
-
-# Verification trigger
-
-# Search verification
-
-# Private chat verification
-
-# Reply feature verification
-
-# Theme verification
