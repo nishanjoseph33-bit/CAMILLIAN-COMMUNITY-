@@ -82,6 +82,7 @@ import io.ktor.client.engine.android.Android
 import io.ktor.client.request.get
 import io.ktor.client.request.parameter
 import io.ktor.client.statement.bodyAsText
+import io.ktor.utils.io.jvm.javaio.toByteReadChannel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -1189,7 +1190,16 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
 
                         if (kind == "video" || tempFile.length() > 6L * 1024L * 1024L) {
                             // Supabase recommends resumable uploads for files over 6 MB.
-                            val upload = bucket.resumable.createOrContinueUpload(path, tempFile)
+                            val upload = bucket.resumable.createOrContinueUpload(
+                                channel = { offset ->
+                                    java.io.FileInputStream(tempFile).apply {
+                                        channel.position(offset)
+                                    }.toByteReadChannel()
+                                },
+                                source = path,
+                                size = tempFile.length(),
+                                path = path
+                            )
                             upload.startOrResumeUploading()
                         } else {
                             bucket.upload(path, tempFile, upsert = false)
