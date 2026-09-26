@@ -66,3 +66,5 @@ jobs:
           path: app/build/outputs/apk/debug/app-debug.apk
 
 # Edit delete message verification
+
+# Fix admin dashboard header wrapping
