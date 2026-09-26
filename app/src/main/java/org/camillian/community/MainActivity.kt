@@ -2041,6 +2041,15 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                     .padding(padding)
                     .background(pageBackground)
             ) {
+                if (currentTab != "Home") {
+                    Image(
+                        painter = painterResource(id = R.drawable.camillian_background),
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        alpha = 0.10f
+                    )
+                }
                 when (currentTab) {
                     "Home" -> HomeScreen(profile, language)
                     "Friends" -> FriendsScreen(profile, language, onOpenChat = { conversation ->
