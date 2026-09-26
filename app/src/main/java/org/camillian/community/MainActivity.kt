@@ -437,7 +437,6 @@ private fun MessageNotificationListener(profile: MemberProfile) {
 }
 
 @Composable
-@Composable
 private fun LaunchSplashScreen(
     stage: Int,
     blurRadius: androidx.compose.ui.unit.Dp
