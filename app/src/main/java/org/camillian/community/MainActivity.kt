@@ -2130,17 +2130,21 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
     // Open a private chat directly from Find Friends. This avoids routing through the
     // Messages tab, so the chat cannot be lost during AnimatedContent recomposition.
     if (publicProfile != null) {
-        PublicMemberProfileScreen(member = publicProfile!!, language = language, onBack = { publicProfile = null })
+        BackSwipeContainer(onBack = { publicProfile = null }) {
+            PublicMemberProfileScreen(member = publicProfile!!, language = language, onBack = { publicProfile = null })
+        }
         return
     }
 
     if (activeChat != null) {
-        ChatScreen(
-            profile = profile,
-            conversation = activeChat!!,
-            language = language,
-            onBack = { activeChat = null }
-        )
+        BackSwipeContainer(onBack = { activeChat = null }) {
+            ChatScreen(
+                profile = profile,
+                conversation = activeChat!!,
+                language = language,
+                onBack = { activeChat = null }
+            )
+        }
         return
     }
 
@@ -3337,7 +3341,11 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.surfaceVariant
@@ -3703,6 +3711,44 @@ private fun SharePostDialog(
 }
 
 @Composable
+private fun BackSwipeContainer(
+    onBack: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Box(
+        Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                var startX = 0f
+                var totalDrag = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = {
+                        startX = it.x
+                        totalDrag = 0f
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        totalDrag += dragAmount
+                        change.consume()
+                    },
+                    onDragEnd = {
+                        val edge = 48.dp.toPx()
+                        val threshold = 110.dp.toPx()
+                        val fromLeft = startX <= edge && totalDrag >= threshold
+                        val fromRight = startX >= size.width - edge && totalDrag <= -threshold
+                        if (fromLeft || fromRight) onBack()
+                    },
+                    onDragCancel = {
+                        startX = 0f
+                        totalDrag = 0f
+                    }
+                )
+            }
+    ) {
+        content()
+    }
+}
+
+@Composable
 private fun PublicMemberProfileScreen(
     member: MemberProfile,
     language: String,
@@ -3722,7 +3768,11 @@ private fun PublicMemberProfileScreen(
         }
     }
 
-    Column(Modifier.fillMaxSize()) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing)
+    ) {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
