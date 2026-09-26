@@ -469,85 +469,82 @@ private fun LaunchSplashScreen(
 
 @Composable
 private fun TypingInvocationText() {
-    val first = "ST. CAMILLUS"
-    val second = "pray for us"
-    var firstCount by remember { mutableIntStateOf(0) }
-    var secondCount by remember { mutableIntStateOf(0) }
+    // Fade Whisper: a quiet, elegant fade-in/fade-out treatment.
+    // The first line uses Cormorant Garamond; the prayer line uses Allura.
+    val cormorant = remember {
+        androidx.compose.ui.text.font.FontFamily(
+            androidx.compose.ui.text.googlefonts.Font(
+                googleFont = androidx.compose.ui.text.googlefonts.GoogleFont("Cormorant Garamond"),
+                fontProvider = GoogleFontsProvider
+            )
+        )
+    }
+    val allura = remember {
+        androidx.compose.ui.text.font.FontFamily(
+            androidx.compose.ui.text.googlefonts.Font(
+                googleFont = androidx.compose.ui.text.googlefonts.GoogleFont("Allura"),
+                fontProvider = GoogleFontsProvider
+            )
+        )
+    }
+
+    var firstVisible by remember { mutableStateOf(false) }
+    var secondVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        // Handwritten cursive write-on: each character appears as if it is being
-        // written by hand, rather than the previous typewriter-style reveal.
-        for (index in 1..first.length) {
-            firstCount = index
-            delay(115)
-        }
-        delay(300)
-        for (index in 1..second.length) {
-            secondCount = index
-            delay(125)
-        }
+        delay(120)
+        firstVisible = true
+        delay(760)
+        secondVisible = true
+        delay(650)
+        firstVisible = false
+        delay(520)
+        secondVisible = false
     }
+
+    val firstAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (firstVisible) 1f else 0f,
+        animationSpec = tween(650, easing = FastOutSlowInEasing),
+        label = "fade-whisper-first"
+    )
+    val secondAlpha by androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (secondVisible) 1f else 0f,
+        animationSpec = tween(700, easing = FastOutSlowInEasing),
+        label = "fade-whisper-second"
+    )
 
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        HandwrittenWriteOnText(
-            text = first,
-            visibleCount = firstCount,
+        Text(
+            text = "ST. CAMILLUS",
+            fontFamily = cormorant,
+            fontWeight = FontWeight.SemiBold,
             fontSize = 42.sp,
-            letterSpacing = 0.5.sp
+            letterSpacing = 1.2.sp,
+            color = Color.White.copy(alpha = firstAlpha),
+            textAlign = TextAlign.Center
         )
         Spacer(Modifier.height(2.dp))
-        HandwrittenWriteOnText(
-            text = second,
-            visibleCount = secondCount,
-            fontSize = 25.sp,
-            letterSpacing = 0.2.sp
+        Text(
+            text = "pray for us",
+            fontFamily = allura,
+            fontWeight = FontWeight.Normal,
+            fontSize = 31.sp,
+            letterSpacing = 0.2.sp,
+            color = Color.White.copy(alpha = secondAlpha),
+            textAlign = TextAlign.Center
         )
     }
 }
 
-@Composable
-private fun HandwrittenWriteOnText(
-    text: String,
-    visibleCount: Int,
-    fontSize: androidx.compose.ui.unit.TextUnit,
-    letterSpacing: androidx.compose.ui.unit.TextUnit
-) {
-    Row(
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        text.forEachIndexed { index, character ->
-            if (index < visibleCount) {
-                val targetAlpha = 1f
-                val alpha by animateFloatAsState(
-                    targetValue = targetAlpha,
-                    animationSpec = tween(
-                        durationMillis = 220,
-                        easing = FastOutSlowInEasing
-                    ),
-                    label = "handwritten-alpha-$index"
-                )
-                Text(
-                    text = character.toString(),
-                    fontFamily = FontFamily.Cursive,
-                    fontSize = fontSize,
-                    fontWeight = FontWeight.Normal,
-                    letterSpacing = letterSpacing,
-                    color = Color.White.copy(alpha = alpha),
-                    modifier = Modifier
-                        .graphicsLayer(
-                            alpha = alpha,
-                            translationX = if (index == visibleCount - 1) 2f else 0f
-                        )
-                )
-            }
-        }
-    }
-}
+private val GoogleFontsProvider = androidx.compose.ui.text.googlefonts.GoogleFont.Provider(
+    providerAuthority = "com.google.android.gms.fonts",
+    providerPackage = "com.google.android.gms",
+    certificates = R.array.com_google_android_gms_fonts_certs
+)
 
 @Composable
 private fun AppBackground(content: @Composable () -> Unit) {
