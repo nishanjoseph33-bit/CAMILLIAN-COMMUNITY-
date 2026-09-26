@@ -2469,6 +2469,55 @@ private fun MessagesScreen(
     var unreadByConversation by remember { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
     var selected by remember { mutableStateOf<Conversation?>(initialConversation) }
     var loading by remember { mutableStateOf(true) }
+    var showCreateGroup by remember { mutableStateOf(false) }
+    var groupName by remember { mutableStateOf("") }
+    var groupMembers by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
+    var selectedMemberIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var creatingGroup by remember { mutableStateOf(false) }
+    var groupMessage by remember { mutableStateOf("") }
+    val scope = rememberCoroutineScope()
+
+    fun loadGroupMembers() {
+        scope.launch {
+            try {
+                groupMembers = Supabase.client.from("profiles").select {
+                    filter { filter("member_status", FilterOperator.EQ, "approved") }
+                    order("full_name", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+                }.decodeList<MemberProfile>().filter { it.id != profile.id }
+            } catch (e: Exception) {
+                groupMessage = e.message ?: "Could not load members."
+            }
+        }
+    }
+
+    fun createGroup() {
+        if (creatingGroup || groupName.isBlank() || selectedMemberIds.isEmpty()) return
+        scope.launch {
+            creatingGroup = true
+            groupMessage = ""
+            try {
+                val conversationId = Supabase.client.postgrest.rpc(
+                    "create_group_conversation",
+                    buildJsonObject {
+                        put("group_title", groupName.trim())
+                        put("member_user_ids", kotlinx.serialization.json.JsonArray(
+                            selectedMemberIds.map { kotlinx.serialization.json.JsonPrimitive(it) }
+                        ))
+                    }
+                ).decodeSingle<String>()
+                val newConversation = Conversation(conversationId, groupName.trim(), true)
+                conversations = conversations + newConversation
+                selected = newConversation
+                showCreateGroup = false
+                groupName = ""
+                selectedMemberIds = emptySet()
+            } catch (e: Exception) {
+                groupMessage = userFacingSupabaseError(e, "Could not create the group.")
+            } finally {
+                creatingGroup = false
+            }
+        }
+    }
 
     suspend fun refreshUnread() {
         try {
@@ -2540,9 +2589,82 @@ private fun MessagesScreen(
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
-        Text(localized("Messages", language), style = MaterialTheme.typography.headlineMedium)
-        Text(localized("Private and community conversations. Tap a conversation to open the message page.", language))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(localized("Messages", language), style = MaterialTheme.typography.headlineMedium)
+                Text(localized("Private and community conversations. Tap a conversation to open the message page.", language))
+            }
+            Button(onClick = {
+                groupMessage = ""
+                showCreateGroup = true
+                if (groupMembers.isEmpty()) loadGroupMembers()
+            }) {
+                Text(localized("Create group", language))
+            }
+        }
         Spacer(Modifier.height(16.dp))
+        if (groupMessage.isNotBlank()) Text(groupMessage, color = MaterialTheme.colorScheme.primary)
+
+        if (showCreateGroup) {
+            AlertDialog(
+                onDismissRequest = { if (!creatingGroup) showCreateGroup = false },
+                title = { Text(localized("Create group chat", language)) },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().heightIn(max = 460.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            groupName,
+                            { groupName = it },
+                            Modifier.fillMaxWidth(),
+                            label = { Text(localized("Group name", language)) },
+                            singleLine = true
+                        )
+                        Text(localized("Select members", language), style = MaterialTheme.typography.titleSmall)
+                        LazyColumn(
+                            modifier = Modifier.weight(1f, fill = false),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            items(groupMembers, key = { it.id }) { member ->
+                                val checked = member.id in selectedMemberIds
+                                Row(
+                                    Modifier.fillMaxWidth().clickable {
+                                        selectedMemberIds = if (checked) selectedMemberIds - member.id else selectedMemberIds + member.id
+                                    }.padding(vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Checkbox(
+                                        checked = checked,
+                                        onCheckedChange = { value ->
+                                            selectedMemberIds = if (value) selectedMemberIds + member.id else selectedMemberIds - member.id
+                                        }
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(member.fullName?.takeIf { it.isNotBlank() }
+                                        ?: member.religiousName?.takeIf { it.isNotBlank() }
+                                        ?: member.email ?: "Member")
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Button(
+                        onClick = { createGroup() },
+                        enabled = !creatingGroup && groupName.isNotBlank() && selectedMemberIds.isNotEmpty()
+                    ) {
+                        Text(if (creatingGroup) localized("Creating...", language) else localized("Create", language))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showCreateGroup = false }, enabled = !creatingGroup) {
+                        Text(localized("Cancel", language))
+                    }
+                }
+            )
+        }
+
         if (loading) CircularProgressIndicator()
         else if (conversations.isEmpty()) Text(localized("No conversations yet.", language))
         else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -2595,9 +2717,12 @@ private fun MessagesScreen(
                             Spacer(Modifier.width(14.dp))
                             Column(Modifier.weight(1f)) {
                                 Text(
-                                    person?.fullName?.takeIf { it.isNotBlank() }
-                                        ?: person?.religiousName?.takeIf { it.isNotBlank() }
-                                        ?: if (conversation.isGroup) localized("Community conversation", language) else localized("Private conversation", language),
+                                    if (conversation.isGroup)
+                                        conversation.title?.takeIf { it.isNotBlank() } ?: localized("Group conversation", language)
+                                    else
+                                        person?.fullName?.takeIf { it.isNotBlank() }
+                                            ?: person?.religiousName?.takeIf { it.isNotBlank() }
+                                            ?: localized("Private conversation", language),
                                     style = MaterialTheme.typography.titleMedium
                                 )
                             }
@@ -2781,7 +2906,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        otherMemberName ?: conversation.title ?: localized("Conversation", language),
+                        if (conversation.isGroup) conversation.title ?: localized("Group conversation", language) else otherMemberName ?: conversation.title ?: localized("Conversation", language),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.SemiBold
