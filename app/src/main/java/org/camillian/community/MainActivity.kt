@@ -140,6 +140,8 @@ private data class MemberProfile(
     val email: String? = null,
     val phone: String? = null,
     @SerialName("religious_name") val religiousName: String? = null,
+    @SerialName("religious_status") val religiousStatus: String? = null,
+    val vocation: String? = null,
     val place: String? = null,
     val province: String? = null,
     val delegation: String? = null,
@@ -2383,40 +2385,108 @@ private data class Organization(
 
 @Composable
 private fun CommunitiesScreen(language: String = "English") {
-    var organizations by remember { mutableStateOf<List<Organization>>(emptyList()) }
+    var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
+    var selectedProvince by remember { mutableStateOf<String?>(null) }
+    var selectedStatus by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         try {
-            organizations = Supabase.client.from("organizations").select {
-                order("name", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
-            }.decodeList<Organization>()
+            members = Supabase.client.from("profiles").select {
+                filter { filter("member_status", FilterOperator.EQ, "approved") }
+                order("full_name", io.github.jan.supabase.postgrest.query.Order.ASCENDING)
+            }.decodeList<MemberProfile>()
         } catch (_: Exception) {
-        } finally {
-            loading = false
+        } finally { loading = false }
+    }
+
+    if (selectedProvince != null) {
+        Column(Modifier.fillMaxSize().padding(20.dp)) {
+            TextButton(onClick = {
+                if (selectedStatus != null) selectedStatus = null else selectedProvince = null
+            }) { Text(localized("Back", language)) }
+            Text(selectedProvince!!, style = MaterialTheme.typography.headlineMedium)
+            Text(localized("Choose a formation status.", language))
+            Spacer(Modifier.height(16.dp))
+            if (selectedStatus == null) {
+                val provinceMembers = members.filter { it.province?.trim()?.equals(selectedProvince, true) == true }
+                val perpetual = provinceMembers.count { it.religiousStatus.equals("Perpetual Professed", true) }
+                val temporary = provinceMembers.count { it.religiousStatus.equals("Temporary Professed", true) }
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Card(Modifier.fillMaxWidth().clickable { selectedStatus = "Perpetual Professed" }) {
+                        Column(Modifier.padding(20.dp)) {
+                            Text("Perpetual Professed", style = MaterialTheme.typography.titleLarge)
+                            Text("$perpetual members")
+                        }
+                    }
+                    Card(Modifier.fillMaxWidth().clickable { selectedStatus = "Temporary Professed" }) {
+                        Column(Modifier.padding(20.dp)) {
+                            Text("Temporary Professed", style = MaterialTheme.typography.titleLarge)
+                            Text("$temporary members")
+                        }
+                    }
+                }
+            } else {
+                val statusMembers = members.filter {
+                    it.province?.trim()?.equals(selectedProvince, true) == true &&
+                        it.religiousStatus.equals(selectedStatus, true)
+                }
+                Text(selectedStatus!!, style = MaterialTheme.typography.titleLarge)
+                Spacer(Modifier.height(8.dp))
+                if (statusMembers.isEmpty()) Text(localized("No members in this category.", language))
+                else LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(statusMembers, key = { it.id }) { member ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                                if (!member.avatarUrl.isNullOrBlank()) {
+                                    AsyncImage(model = member.avatarUrl, contentDescription = "Profile photo",
+                                        modifier = Modifier.size(48.dp).clip(RoundedCornerShape(50)), contentScale = ContentScale.Crop)
+                                } else {
+                                    Surface(Modifier.size(48.dp), shape = RoundedCornerShape(50), color = MaterialTheme.colorScheme.surfaceVariant) {
+                                        Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Person, contentDescription = "Profile photo") }
+                                    }
+                                }
+                                Spacer(Modifier.width(12.dp))
+                                Column {
+                                    Text(member.fullName?.takeIf { it.isNotBlank() } ?: member.religiousName.orEmpty(),
+                                        style = MaterialTheme.typography.titleMedium)
+                                    member.vocation?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
+        return
     }
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         Text(localized("Communities", language), style = MaterialTheme.typography.headlineMedium)
-        Text(localized("Provinces, delegations, communities and formation houses.", language))
-        Spacer(Modifier.height(16.dp))
+        Text(localized("All approved members in the app, organized by province.", language))
+        Spacer(Modifier.height(12.dp))
         if (loading) CircularProgressIndicator()
-        else if (organizations.isEmpty()) Text(localized("No communities have been added yet.", language))
-        else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(organizations, key = { it.id }) { org ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text(org.name, style = MaterialTheme.typography.titleLarge)
-                        Text(org.type)
-                        if (!org.description.isNullOrBlank()) Text(org.description!!)
+        else {
+            Text(members.size.toString(), style = MaterialTheme.typography.displaySmall,
+                color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+            Text(localized("Members in the app", language))
+            Spacer(Modifier.height(16.dp))
+            val provinces = members.mapNotNull { it.province?.trim()?.takeIf { p -> p.isNotBlank() } }
+                .distinctBy { it.lowercase() }.sortedBy { it.lowercase() }
+            if (provinces.isEmpty()) Text(localized("No provinces have been entered in member profiles yet.", language))
+            else LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(provinces) { province ->
+                    Card(Modifier.fillMaxWidth().clickable { selectedProvince = province }) {
+                        Column(Modifier.padding(18.dp)) {
+                            Text(province, style = MaterialTheme.typography.titleLarge)
+                            Text("${members.count { it.province?.trim()?.equals(province, true) == true }} members")
+                        }
                     }
                 }
             }
         }
     }
 }
-
 
 private fun userFacingSupabaseError(error: Exception, fallback: String): String {
     val raw = error.message?.trim().orEmpty()
@@ -3078,6 +3148,8 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
 private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language: String = "English", onLanguageChange: (String) -> Unit = {}, onProfileUpdated: (MemberProfile) -> Unit = {}, signingOut: Boolean = false) {
     var fullName by remember { mutableStateOf(profile.fullName.orEmpty()) }
     var religiousName by remember { mutableStateOf(profile.religiousName.orEmpty()) }
+    var religiousStatus by remember { mutableStateOf(profile.religiousStatus.orEmpty()) }
+    var vocation by remember { mutableStateOf(profile.vocation.orEmpty()) }
     var phone by remember { mutableStateOf(profile.phone.orEmpty()) }
     var place by remember { mutableStateOf(profile.place.orEmpty()) }
     var province by remember { mutableStateOf(profile.province.orEmpty()) }
@@ -3188,11 +3260,37 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                 }
             }
             item { Text(profile.email ?: "") }
-            item { OutlinedTextField(fullName, { fullName = it }, Modifier.fillMaxWidth(), label = { Text(localized("Name", language)) }) }
+            item { OutlinedTextField(fullName, { fullName = it }, Modifier.fillMaxWidth(), label = { Text(localized("Name *", language)) }) }
+            item { OutlinedTextField(province, { province = it }, Modifier.fillMaxWidth(), label = { Text(localized("Province *", language)) }) }
+            item {
+                var expandedStatus by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(onClick = { expandedStatus = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (religiousStatus.isBlank()) "Status *" else religiousStatus)
+                    }
+                    DropdownMenu(expanded = expandedStatus, onDismissRequest = { expandedStatus = false }) {
+                        listOf("Perpetual Professed", "Temporary Professed").forEach { option ->
+                            DropdownMenuItem(text = { Text(option) }, onClick = { religiousStatus = option; expandedStatus = false })
+                        }
+                    }
+                }
+            }
+            item {
+                var expandedVocation by remember { mutableStateOf(false) }
+                Box {
+                    OutlinedButton(onClick = { expandedVocation = true }, modifier = Modifier.fillMaxWidth()) {
+                        Text(if (vocation.isBlank()) "Priest / Brother *" else vocation)
+                    }
+                    DropdownMenu(expanded = expandedVocation, onDismissRequest = { expandedVocation = false }) {
+                        listOf("Priest", "Brother").forEach { option ->
+                            DropdownMenuItem(text = { Text(option) }, onClick = { vocation = option; expandedVocation = false })
+                        }
+                    }
+                }
+            }
             item { OutlinedTextField(religiousName, { religiousName = it }, Modifier.fillMaxWidth(), label = { Text(localized("Religious name", language)) }) }
             item { OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text(localized("Phone", language)) }) }
             item { OutlinedTextField(place, { place = it }, Modifier.fillMaxWidth(), label = { Text(localized("Place", language)) }) }
-            item { OutlinedTextField(province, { province = it }, Modifier.fillMaxWidth(), label = { Text(localized("Province", language)) }) }
             item { OutlinedTextField(delegation, { delegation = it }, Modifier.fillMaxWidth(), label = { Text(localized("Delegation", language)) }) }
             item { OutlinedTextField(community, { community = it }, Modifier.fillMaxWidth(), label = { Text(localized("Community", language)) }) }
             item { OutlinedTextField(ministry, { ministry = it }, Modifier.fillMaxWidth(), label = { Text(localized("Ministry", language)) }) }
@@ -3204,6 +3302,10 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                         scope.launch {
                             saving = true
                             try {
+                                if (fullName.trim().isBlank() || province.trim().isBlank() || religiousStatus.isBlank() || vocation.isBlank()) {
+                                    message = "Name, Province, Status and Priest/Brother are required."
+                                    return@launch
+                                }
                                 if (avatarUri != null) {
                                     uploadingAvatar = true
                                     val uri = avatarUri!!
@@ -3226,6 +3328,8 @@ private fun ProfileScreen(profile: MemberProfile, onLogout: () -> Unit, language
                                 Supabase.client.from("profiles").update(buildJsonObject {
                                     put("full_name", fullName.trim())
                                     put("religious_name", religiousName.trim())
+                                    put("religious_status", religiousStatus)
+                                    put("vocation", vocation)
                                     put("phone", phone.trim())
                                     put("place", place.trim())
                                     put("province", province.trim())
