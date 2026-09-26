@@ -393,7 +393,7 @@ private fun MessageNotificationListener(profile: MemberProfile) {
                         val senderName = sender?.fullName?.takeIf { it.isNotBlank() }
                             ?: sender?.religiousName?.takeIf { it.isNotBlank() }
                             ?: "New message"
-                        val body = incoming.messageText.takeIf { it.isNotBlank() }
+                        val body = incoming.messageText?.takeIf { it.isNotBlank() }
                             ?: "You received a new message."
 
                         val intent = Intent(context, MainActivity::class.java).apply {
