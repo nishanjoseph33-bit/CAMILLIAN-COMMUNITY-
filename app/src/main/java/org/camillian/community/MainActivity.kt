@@ -1765,10 +1765,18 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                 scope.launch {
                     sharing = true
                     try {
-                        val conversationId = Supabase.client.postgrest.rpc(
-                            "ensure_friend_conversation",
-                            buildJsonObject { put("target_user_id", friend.id) }
-                        ).decodeAs<String>()
+                        // The Supabase RPC returns a JSON array containing
+                        // { "conversation_id": "..." }, so decode the row rather
+                        // than treating the whole response as a plain JSON string.
+                        val conversationId = Supabase.client.postgrest
+                            .rpc(
+                                "ensure_friend_conversation",
+                                buildJsonObject { put("target_user_id", friend.id) }
+                            )
+                            .decodeList<PrivateConversationResult>()
+                            .firstOrNull()
+                            ?.conversationId
+                            ?: error("The conversation could not be created.")
                         Supabase.client.from("messages").insert(buildJsonObject {
                             put("conversation_id", conversationId)
                             put("sender_id", profile.id)
