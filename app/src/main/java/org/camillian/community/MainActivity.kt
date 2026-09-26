@@ -1188,22 +1188,20 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English") {
                         val path = profile.id + "/posts/" + System.currentTimeMillis() + "." + extension
                         val bucket = Supabase.client.storage.from("camillian-media")
 
-                        if (kind == "video" || tempFile.length() > 6L * 1024L * 1024L) {
-                            // Supabase recommends resumable uploads for files over 6 MB.
-                            val upload = bucket.resumable.createOrContinueUpload(
-                                channel = { offset ->
-                                    java.io.FileInputStream(tempFile).apply {
-                                        channel.position(offset)
-                                    }.toByteReadChannel()
-                                },
-                                source = path,
-                                size = tempFile.length(),
-                                path = path
-                            )
-                            upload.startOrResumeUploading()
-                        } else {
-                            bucket.upload(path, tempFile, upsert = false)
-                        }
+                        // Use a streaming resumable upload for both photos and videos.
+                        // This avoids loading large Android media files into memory and
+                        // also handles phone videos that exceed Supabase's 6 MB recommendation.
+                        val upload = bucket.resumable.createOrContinueUpload(
+                            channel = { offset ->
+                                java.io.FileInputStream(tempFile).apply {
+                                    channel.position(offset)
+                                }.toByteReadChannel()
+                            },
+                            source = path,
+                            size = tempFile.length(),
+                            path = path
+                        )
+                        upload.startOrResumeUploading()
 
                         mediaUrl = bucket.publicUrl(path)
                     } finally {
