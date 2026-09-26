@@ -494,10 +494,6 @@ private fun RecoveryPasswordScreen(language: String = "English", onDone: () -> U
             },
             modifier = Modifier.fillMaxWidth()
         ) { Text(if (saving) "Saving..." else "Update password") }
-        if (receivingSticker || pendingMediaUrl != null) {
-            Text(if (receivingSticker) "Receiving sticker..." else "Sticker attached — tap Send", color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
-        }
-
         if (message.isNotBlank()) {
             Spacer(Modifier.height(12.dp))
             Text(message)
@@ -892,41 +888,456 @@ private fun RegisterDialog(language: String = "English", onDismiss: () -> Unit, 
         title = { Text(localized("Member registration", language)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                AndroidView(
-                    modifier = Modifier.weight(1f),
-                    factory = { context ->
-                        EditText(context).apply {
-                            composerEditText = this
-                            hint = if (!otherMemberName.isNullOrBlank())
-                                "Message " + otherMemberName + "..."
-                            else
-                                localized("Message...", language)
-                            setSingleLine(false)
-                            maxLines = 5
-                            setPadding(20, 12, 20, 12)
-                            background = null
-                            inputType = android.text.InputType.TYPE_CLASS_TEXT or
-                                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or
-                                android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-                            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEND
-                            addTextChangedListener(object : TextWatcher {
-                                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
-                                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                                    composer = s?.toString().orEmpty()
+                OutlinedTextField(name, { name = it }, label = { Text(localized("Full name", language)) })
+                OutlinedTextField(email, { email = it }, label = { Text("Email") })
+                OutlinedTextField(password, { password = it }, visualTransformation = PasswordVisualTransformation(), label = { Text("Password") })
+                OutlinedTextField(invite, { invite = it }, label = { Text(localized("Invitation code", language)) })
+            }
+        },
+        confirmButton = {
+            Button(enabled = !busy, onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        val valid = Supabase.client.postgrest.rpc("check_invite_code", buildJsonObject { put("invite_code", invite) }).decodeSingle<InviteCheck>().valid
+                        if (!valid) error("Invalid or expired invitation code.")
+                        Supabase.client.auth.signUpWith(Email, redirectUrl = "camillian://auth?type=confirm") {
+                            this.email = email.trim()
+                            this.password = password
+                            data = buildJsonObject { put("full_name", name.trim()) }
+                        }
+                        Supabase.client.postgrest.rpc("consume_invite_code", buildJsonObject { put("invite_code", invite) })
+                        onMessage("Registration submitted. An administrator must approve your membership.")
+                        onDismiss()
+                    } catch (e: Exception) {
+                        onMessage(e.message ?: "Registration failed.")
+                    } finally { busy = false }
+                }
+            }) { Text(if (busy) localized("Registering...", language) else localized("Register", language)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(localized("Cancel", language)) } }
+    )
+}
+
+@Composable
+private fun RecoveryDialog(language: String = "English", onDismiss: () -> Unit, onMessage: (String) -> Unit) {
+    var email by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(localized("Reset password", language)) },
+        text = { OutlinedTextField(email, { email = it }, label = { Text("Email") }) },
+        confirmButton = {
+            Button(enabled = !busy && email.isNotBlank(), onClick = {
+                scope.launch {
+                    busy = true
+                    try {
+                        Supabase.client.auth.resetPasswordForEmail(email.trim(), redirectUrl = "camillian://auth?type=recovery")
+                        onMessage("Password reset email sent. Check your email.")
+                        onDismiss()
+                    } catch (e: Exception) {
+                        onMessage(e.message ?: "Could not send recovery email.")
+                    } finally { busy = false }
+                }
+            }) { Text(if (busy) localized("Sending...", language) else localized("Send reset email", language)) }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(localized("Cancel", language)) } }
+    )
+}
+
+@Serializable
+private data class FeedPost(
+    val id: String,
+    @SerialName("author_id") val authorId: String,
+    @SerialName("kind") val kind: String = "text",
+    @SerialName("text_content") val textContent: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("media_url") val mediaUrl: String? = null,
+    @SerialName("media_type") val mediaType: String? = null,
+    val province: String? = null
+)
+
+@Serializable
+private data class PostReaction(
+    val id: String,
+    @SerialName("post_id") val postId: String,
+    @SerialName("user_id") val userId: String,
+    val reaction: String = "like"
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeScreen(profile: MemberProfile, language: String = "English") {
+    var posts by remember { mutableStateOf<List<FeedPost>>(emptyList()) }
+    var composer by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    var loading by remember { mutableStateOf(true) }
+    var refreshing by remember { mutableStateOf(false) }
+    var posting by remember { mutableStateOf(false) }
+    var mediaUri by remember { mutableStateOf<Uri?>(null) }
+    var mediaKind by remember { mutableStateOf<String?>(null) }
+    var reactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var authorProfiles by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
+    var reactionCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var reactingPostId by remember { mutableStateOf<String?>(null) }
+    var commentPostId by remember { mutableStateOf<String?>(null) }
+    var showComposer by remember { mutableStateOf(false) }
+    var postProvince by remember { mutableStateOf(profile.province.orEmpty()) }
+    var translatedPosts by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
+    var translatingPostId by remember { mutableStateOf<String?>(null) }
+    var editingPostId by remember { mutableStateOf<String?>(null) }
+    var notifications by remember { mutableStateOf<List<NotificationItem>>(emptyList()) }
+    var showNotifications by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(language) { translatedPosts = emptyMap(); translatingPostId = null }
+    val context = LocalContext.current
+    val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        mediaUri = uri
+        if (uri == null) {
+            mediaKind = null
+        } else {
+            val mime = context.contentResolver.getType(uri).orEmpty()
+            mediaKind = when {
+                mime.startsWith("video/") -> "video"
+                mime.startsWith("image/") -> "photo"
+                else -> null
+            }
+            if (mediaKind == null) {
+                mediaUri = null
+                message = "Please select a photo or video file."
+            }
+        }
+    }
+
+    fun loadFeed(showFullLoading: Boolean = true, onComplete: (() -> Unit)? = null) {
+        scope.launch {
+            if (showFullLoading) loading = true
+            try {
+                posts = Supabase.client.from("posts").select {
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }.decodeList<FeedPost>()
+                message = ""
+            } catch (e: Exception) {
+                message = e.message ?: "Could not load the community feed."
+            } finally {
+                loading = false
+                onComplete?.invoke()
+            }
+        }
+    }
+
+    fun loadNotifications() {
+        scope.launch {
+            try {
+                notifications = Supabase.client.from("notifications").select {
+                    filter { filter("user_id", FilterOperator.EQ, profile.id) }
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }.decodeList<NotificationItem>()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not load notifications."
+            }
+        }
+    }
+
+    fun loadAuthors() {
+        scope.launch {
+            try {
+                val authors = Supabase.client.from("profiles").select().decodeList<MemberProfile>()
+                authorProfiles = authors.associateBy { it.id }
+            } catch (_: Exception) { }
+        }
+    }
+
+    fun loadReactions() {
+        scope.launch {
+            try {
+                val reactions = Supabase.client.from("post_reactions").select {
+                    filter { filter("reaction", FilterOperator.EQ, "like") }
+                }.decodeList<PostReaction>()
+                reactionIds = reactions.filter { it.userId == profile.id }.map { it.postId }.toSet()
+                reactionCounts = reactions.groupingBy { it.postId }.eachCount()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not load reactions."
+            }
+        }
+    }
+
+    fun refreshHome() {
+        if (refreshing) return
+        refreshing = true
+        loadFeed(false) {
+            loadAuthors()
+            loadReactions()
+            loadNotifications()
+            refreshing = false
+        }
+    }
+
+    fun editPost(post: FeedPost) {
+        editingPostId = post.id
+        composer = post.textContent.orEmpty()
+        postProvince = post.province.orEmpty()
+        showComposer = true
+    }
+
+    fun saveEditedPost() {
+        val postId = editingPostId ?: return
+        scope.launch {
+            posting = true
+            try {
+                Supabase.client.from("posts").update(buildJsonObject {
+                    put("text_content", composer.trim().ifBlank { null })
+                    put("province", postProvince.trim().ifBlank { null })
+                }) { filter { filter("id", FilterOperator.EQ, postId) } }
+                editingPostId = null
+                composer = ""
+                showComposer = false
+                loadFeed()
+            } catch (e: Exception) { message = e.message ?: "Could not edit post." }
+            finally { posting = false }
+        }
+    }
+
+    fun deletePost(postId: String) {
+        scope.launch {
+            try {
+                Supabase.client.postgrest.rpc("delete_own_post", buildJsonObject { put("target_post_id", postId) })
+                posts = posts.filterNot { it.id == postId }
+                message = ""
+            } catch (e: Exception) {
+                message = e.message ?: "Could not delete post."
+            }
+        }
+    }
+
+    fun toggleLike(postId: String) {
+        if (reactingPostId != null) return
+        scope.launch {
+            reactingPostId = postId
+            try {
+                val existing = Supabase.client.from("post_reactions").select {
+                    filter { filter("post_id", FilterOperator.EQ, postId) }
+                    filter { filter("user_id", FilterOperator.EQ, profile.id) }
+                    filter { filter("reaction", FilterOperator.EQ, "like") }
+                }.decodeList<PostReaction>()
+
+                if (existing.isNotEmpty()) {
+                    existing.forEach { reaction ->
+                        Supabase.client.from("post_reactions").delete {
+                            filter { filter("id", FilterOperator.EQ, reaction.id) }
+                        }
+                    }
+                } else {
+                    try {
+                        Supabase.client.from("post_reactions").insert(buildJsonObject {
+                            put("post_id", postId)
+                            put("user_id", profile.id)
+                            put("reaction", "like")
+                        })
+                    } catch (e: Exception) {
+                        // A rapid double-tap can race the existence check.
+                        // If the database already has the unique reaction, simply refresh.
+                        if (!e.message.orEmpty().contains("23505") &&
+                            !e.message.orEmpty().contains("post_reactions_post_id_user_id_key")) {
+                            throw e
+                        }
+                    }
+                }
+                message = ""
+                loadReactions()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not update the reaction."
+            } finally {
+                reactingPostId = null
+            }
+        }
+    }
+
+    fun createPost() {
+        val text = composer.trim()
+        if (text.isEmpty() && mediaUri == null) return
+        scope.launch {
+            posting = true
+            try {
+                var mediaUrl: String? = null
+                if (mediaUri != null) {
+                    val uri = mediaUri!!
+                    val mime = context.contentResolver.getType(uri).orEmpty()
+                    val kind = mediaKind ?: when {
+                        mime.startsWith("video/") -> "video"
+                        mime.startsWith("image/") -> "photo"
+                        else -> null
+                    } ?: error("Please select a photo or video.")
+
+                    val extension = when {
+                        kind == "video" && mime.contains("quicktime") -> "mov"
+                        kind == "video" -> "mp4"
+                        mime.contains("png") -> "png"
+                        mime.contains("webp") -> "webp"
+                        else -> "jpg"
+                    }
+
+                    // Copy the selected content to a local file so large videos are
+                    // never loaded entirely into memory.
+                    val tempFile = withContext(Dispatchers.IO) {
+                        val file = File.createTempFile("camillian-upload-", ".$extension", context.cacheDir)
+                        context.contentResolver.openInputStream(uri)?.use { input ->
+                            file.outputStream().use { output -> input.copyTo(output) }
+                        } ?: error("Could not read selected media.")
+                        file
+                    }
+
+                    try {
+                        val path = profile.id + "/posts/" + System.currentTimeMillis() + "." + extension
+                        val bucket = Supabase.client.storage.from("camillian-media")
+
+                        // Use a streaming resumable upload for both photos and videos.
+                        // This avoids loading large Android media files into memory and
+                        // also handles phone videos that exceed Supabase's 6 MB recommendation.
+                        val upload = bucket.resumable.createOrContinueUpload(
+                            channel = { offset ->
+                                java.io.FileInputStream(tempFile).apply {
+                                    channel.position(offset)
+                                }.toByteReadChannel()
+                            },
+                            source = path,
+                            size = tempFile.length(),
+                            path = path
+                        )
+                        upload.startOrResumeUploading()
+
+                        mediaUrl = bucket.publicUrl(path)
+                    } finally {
+                        tempFile.delete()
+                    }
+                }
+
+                Supabase.client.from("posts").insert(buildJsonObject {
+                    put("author_id", profile.id)
+                    put("kind", mediaKind ?: "text")
+                    put("text_content", text.ifBlank { null })
+                    put("media_url", mediaUrl)
+                    put("media_type", mediaKind)
+                    put("province", postProvince.trim().ifBlank { null })
+                })
+                composer = ""
+                mediaUri = null
+                mediaKind = null
+                message = ""
+                loadFeed()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not publish your post."
+            } finally {
+                posting = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        loadFeed()
+        loadAuthors()
+        loadReactions()
+        loadNotifications()
+    }
+
+    Column(Modifier.fillMaxSize().background(Color(0xFFFFFBFB))) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Surface(
+                modifier = Modifier.size(42.dp),
+                shape = RoundedCornerShape(50),
+                color = Color.White,
+                shadowElevation = 5.dp
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.camillian_logo),
+                    contentDescription = "Camillian",
+                    modifier = Modifier.padding(6.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+            Spacer(Modifier.width(10.dp))
+            Text(
+                "Camillian",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                modifier = Modifier.weight(1f)
+            )
+            TextButton(onClick = { showComposer = true }) {
+                Text("+", fontSize = 28.sp, fontWeight = FontWeight.Light)
+            }
+            BadgedBox(
+                badge = {
+                    val unread = notifications.count { !it.isRead }
+                    if (unread > 0) {
+                        Badge { Text(if (unread > 9) "9+" else unread.toString()) }
+                    }
+                }
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = Color(0xFFE5A15A),
+                    shadowElevation = 5.dp
+                ) {
+                    IconButton(onClick = { showNotifications = !showNotifications }) {
+                        Icon(
+                            Icons.Filled.Notifications,
+                            contentDescription = localized("Notifications", language),
+                            tint = Color(0xFF3A1D12)
+                        )
+                    }
+                }
+            }
+            TextButton(onClick = { refreshHome() }) { Text("↻", fontSize = 22.sp) }
+        }
+
+        if (showNotifications) {
+            Card(
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                shape = RoundedCornerShape(18.dp)
+            ) {
+                Column(Modifier.padding(14.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text(localized("Notifications", language), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                        if (notifications.any { !it.isRead }) {
+                            TextButton(onClick = {
+                                scope.launch {
+                                    try {
+                                        Supabase.client.from("notifications").update({ set("is_read", true) }) {
+                                            filter { filter("user_id", FilterOperator.EQ, profile.id) }
+                                        }
+                                        notifications = notifications.map { it.copy(isRead = true) }
+                                    } catch (e: Exception) {
+                                        message = e.message ?: "Could not mark notifications as read."
+                                    }
                                 }
-                                override fun afterTextChanged(s: Editable?) = Unit
-                            })
-                            ViewCompat.setOnReceiveContentListener(this, arrayOf("image/*")) { _, payload ->
-                                val clip = payload.clip
-                                if (clip.itemCount > 0) {
-                                    clip.getItemAt(0).uri?.let { receiveKeyboardContent(it) }
-                                    null
-                                } else payload
+                            }) { Text(localized("Mark all as read", language)) }
+                        }
+                    }
+                    if (notifications.isEmpty()) {
+                        Text(localized("No notifications yet.", language))
+                    } else {
+                        notifications.take(8).forEach { notification ->
+                            Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+                                Text(notification.title, fontWeight = FontWeight.SemiBold)
+                                if (!notification.body.isNullOrBlank()) Text(notification.body!!)
                             }
                         }
-                    },
-                    update = { composerEditText = it }
-                )
+                    }
+                }
+            }
+        }
+
+        if (refreshing) {
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                 Spacer(Modifier.width(8.dp))
                 Text(localized("Refreshing...", language), style = MaterialTheme.typography.labelMedium)
             }
@@ -1266,10 +1677,7 @@ private fun EditPostDialog(
 private fun CommentsDialog(postId: String, profile: MemberProfile, language: String = "English", onDismiss: () -> Unit) {
     var comments by remember { mutableStateOf<List<PostComment>>(emptyList()) }
     var composer by remember { mutableStateOf("") }
-    var pendingMediaUrl by remember { mutableStateOf<String?>(null) }
-    var receivingSticker by remember { mutableStateOf(false) }
     var sending by remember { mutableStateOf(false) }
-    var composerEditText by remember { mutableStateOf<EditText?>(null) }
     var translatedComments by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
     var translatingCommentId by remember { mutableStateOf<String?>(null) }
     var commentAuthors by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
@@ -1998,8 +2406,7 @@ private data class ChatMessage(
     val id: String,
     @SerialName("conversation_id") val conversationId: String,
     @SerialName("sender_id") val senderId: String,
-    @SerialName("message_text") val messageText: String? = null,
-    @SerialName("media_url") val mediaUrl: String? = null,
+    @SerialName("message_text") val messageText: String,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("delivered_at") val deliveredAt: String? = null,
     @SerialName("seen_at") val seenAt: String? = null
@@ -2392,6 +2799,10 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
             }
         }
 
+        if (receivingSticker || pendingMediaUrl != null) {
+            Text(if (receivingSticker) "Receiving sticker..." else "Sticker attached — tap Send", color = MaterialTheme.colorScheme.primary, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp))
+        }
+
         if (message.isNotBlank()) {
             Text(
                 message,
@@ -2410,25 +2821,40 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                 Modifier.fillMaxWidth().padding(10.dp),
                 verticalAlignment = Alignment.Bottom
             ) {
-                OutlinedTextField(
-                    value = composer,
-                    onValueChange = { composer = it },
+                AndroidView(
                     modifier = Modifier.weight(1f),
-                    placeholder = {
-                        Text(
-                            if (!otherMemberName.isNullOrBlank())
-                                "Message ${otherMemberName}..."
+                    factory = { context ->
+                        EditText(context).apply {
+                            composerEditText = this
+                            hint = if (!otherMemberName.isNullOrBlank())
+                                "Message " + otherMemberName + "..."
                             else
                                 localized("Message...", language)
-                        )
+                            setSingleLine(false)
+                            maxLines = 5
+                            setPadding(20, 12, 20, 12)
+                            background = null
+                            inputType = android.text.InputType.TYPE_CLASS_TEXT or
+                                android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                                android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+                            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_SEND
+                            addTextChangedListener(object : TextWatcher {
+                                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) = Unit
+                                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                                    composer = s?.toString().orEmpty()
+                                }
+                                override fun afterTextChanged(s: Editable?) = Unit
+                            })
+                            ViewCompat.setOnReceiveContentListener(this, arrayOf("image/*")) { _, payload ->
+                                val clip = payload.clip
+                                if (clip.itemCount > 0) {
+                                    clip.getItemAt(0).uri?.let { receiveKeyboardContent(it) }
+                                    null
+                                } else payload
+                            }
+                        }
                     },
-                    maxLines = 5,
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
-                        imeAction = androidx.compose.ui.text.input.ImeAction.Send
-                    ),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSend = { send() }),
-                    shape = RoundedCornerShape(22.dp)
+                    update = { composerEditText = it }
                 )
                 Spacer(Modifier.width(8.dp))
                 Button(
