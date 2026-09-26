@@ -2406,7 +2406,8 @@ private data class ChatMessage(
     val id: String,
     @SerialName("conversation_id") val conversationId: String,
     @SerialName("sender_id") val senderId: String,
-    @SerialName("message_text") val messageText: String,
+    @SerialName("message_text") val messageText: String? = null,
+    @SerialName("media_url") val mediaUrl: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
     @SerialName("delivered_at") val deliveredAt: String? = null,
     @SerialName("seen_at") val seenAt: String? = null
