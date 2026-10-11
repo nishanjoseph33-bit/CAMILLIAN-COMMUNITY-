@@ -1097,6 +1097,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
     var refreshing by remember { mutableStateOf(false) }
     var posting by remember { mutableStateOf(false) }
     var mediaUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedPhotoUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var mediaKind by remember { mutableStateOf<String?>(null) }
     var reactionIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var authorProfiles by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
@@ -1116,21 +1117,18 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
     val scope = rememberCoroutineScope()
     LaunchedEffect(language) { translatedPosts = emptyMap(); translatingPostId = null }
     val context = LocalContext.current
-    val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        selectedPhotoUris = uris
+        mediaUri = uris.firstOrNull()
+        mediaKind = if (uris.isNotEmpty()) "photo" else null
+    }
+    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
         mediaUri = uri
-        if (uri == null) {
-            mediaKind = null
-        } else {
-            val mime = context.contentResolver.getType(uri).orEmpty()
-            mediaKind = when {
-                mime.startsWith("video/") -> "video"
-                mime.startsWith("image/") -> "photo"
-                else -> null
-            }
-            if (mediaKind == null) {
-                mediaUri = null
-                message = "Please select a photo or video file."
-            }
+        selectedPhotoUris = emptyList()
+        mediaKind = if (uri != null && context.contentResolver.getType(uri).orEmpty().startsWith("video/")) "video" else null
+        if (uri != null && mediaKind == null) {
+            mediaUri = null
+            message = "Please select a video file."
         }
     }
 
@@ -1285,56 +1283,57 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
             posting = true
             try {
                 var mediaUrl: String? = null
-                if (mediaUri != null) {
-                    val uri = mediaUri!!
-                    val mime = context.contentResolver.getType(uri).orEmpty()
-                    val kind = mediaKind ?: when {
-                        mime.startsWith("video/") -> "video"
-                        mime.startsWith("image/") -> "photo"
-                        else -> null
-                    } ?: error("Please select a photo or video.")
+                val uploadUris = when {
+                    mediaKind == "photo" && selectedPhotoUris.isNotEmpty() -> selectedPhotoUris
+                    mediaUri != null -> listOf(mediaUri!!)
+                    else -> emptyList()
+                }
+                if (uploadUris.isNotEmpty()) {
+                    val uploadedUrls = mutableListOf<String>()
+                    val bucket = Supabase.client.storage.from("camillian-media")
+                    uploadUris.forEachIndexed { index, uri ->
+                        val mime = context.contentResolver.getType(uri).orEmpty()
+                        val kind = mediaKind ?: when {
+                            mime.startsWith("video/") -> "video"
+                            mime.startsWith("image/") -> "photo"
+                            else -> null
+                        } ?: error("Please select a photo or video.")
 
-                    val extension = when {
-                        kind == "video" && mime.contains("quicktime") -> "mov"
-                        kind == "video" -> "mp4"
-                        mime.contains("png") -> "png"
-                        mime.contains("webp") -> "webp"
-                        else -> "jpg"
+                        val extension = when {
+                            kind == "video" && mime.contains("quicktime") -> "mov"
+                            kind == "video" -> "mp4"
+                            mime.contains("png") -> "png"
+                            mime.contains("webp") -> "webp"
+                            else -> "jpg"
+                        }
+                        val tempFile = withContext(Dispatchers.IO) {
+                            val file = File.createTempFile("camillian-upload-", ".$extension", context.cacheDir)
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                file.outputStream().use { output -> input.copyTo(output) }
+                            } ?: error("Could not read selected media.")
+                            file
+                        }
+                        try {
+                            val storagePath = profile.id + "/posts/" + System.currentTimeMillis() + "-" + index + "." + extension
+                            val upload = bucket.resumable.createOrContinueUpload(
+                                channel = { offset ->
+                                    java.io.FileInputStream(tempFile).apply {
+                                        channel.position(offset)
+                                    }.toByteReadChannel()
+                                },
+                                source = storagePath,
+                                size = tempFile.length(),
+                                path = storagePath
+                            )
+                            upload.startOrResumeUploading()
+                            uploadedUrls.add(bucket.publicUrl(storagePath))
+                        } finally {
+                            tempFile.delete()
+                        }
                     }
-
-                    // Copy the selected content to a local file so large videos are
-                    // never loaded entirely into memory.
-                    val tempFile = withContext(Dispatchers.IO) {
-                        val file = File.createTempFile("camillian-upload-", ".$extension", context.cacheDir)
-                        context.contentResolver.openInputStream(uri)?.use { input ->
-                            file.outputStream().use { output -> input.copyTo(output) }
-                        } ?: error("Could not read selected media.")
-                        file
-                    }
-
-                    try {
-                        val path = profile.id + "/posts/" + System.currentTimeMillis() + "." + extension
-                        val bucket = Supabase.client.storage.from("camillian-media")
-
-                        // Use a streaming resumable upload for both photos and videos.
-                        // This avoids loading large Android media files into memory and
-                        // also handles phone videos that exceed Supabase's 6 MB recommendation.
-                        val upload = bucket.resumable.createOrContinueUpload(
-                            channel = { offset ->
-                                java.io.FileInputStream(tempFile).apply {
-                                    channel.position(offset)
-                                }.toByteReadChannel()
-                            },
-                            source = path,
-                            size = tempFile.length(),
-                            path = path
-                        )
-                        upload.startOrResumeUploading()
-
-                        mediaUrl = bucket.publicUrl(path)
-                    } finally {
-                        tempFile.delete()
-                    }
+                    mediaUrl = if (uploadedUrls.size > 1 && mediaKind == "photo") {
+                        JSONArray().apply { uploadedUrls.forEach { put(it) } }.toString()
+                    } else uploadedUrls.firstOrNull()
                 }
 
                 Supabase.client.from("posts").insert(buildJsonObject {
@@ -1347,6 +1346,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                 })
                 composer = ""
                 mediaUri = null
+                selectedPhotoUris = emptyList()
                 mediaKind = null
                 message = ""
                 loadFeed()
@@ -1480,12 +1480,13 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                             editingPostId = null
                             composer = ""
                             mediaUri = null
+                            selectedPhotoUris = emptyList()
                             mediaKind = null
                         }) { Text(localized("Close", language)) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text(localized("Photo", language)) }
-                        OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text(localized("Video", language)) }
+                        OutlinedButton(onClick = { videoPicker.launch("video/*") }) { Text(localized("Video", language)) }
+                        OutlinedButton(onClick = { photoPicker.launch("image/*") }) { Text(localized("Add photos", language)) }
                     }
 
                     // Show the actual selected media before publishing, styled like a feed post.
@@ -1515,6 +1516,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                                     }
                                     IconButton(onClick = {
                                         mediaUri = null
+                                        selectedPhotoUris = emptyList()
                                         mediaKind = null
                                     }) {
                                         Icon(
