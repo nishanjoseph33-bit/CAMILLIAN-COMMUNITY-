@@ -373,7 +373,7 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false, isDa
                         onProfileUpdated = { updated -> profile = updated },
                         signingOut = signingOut,
                         isDarkMode = isDarkMode,
-                        onToggleTheme = { isDarkMode = !isDarkMode },
+                        onToggleTheme = onToggleTheme,
                         onLogout = { performLogout() }
                     )
                 }
