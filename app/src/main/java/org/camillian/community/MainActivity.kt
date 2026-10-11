@@ -1475,12 +1475,105 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                 Column(Modifier.padding(16.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(localized(if (editingPostId == null) "Share with the community" else "Edit post", language), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { showComposer = false; editingPostId = null; composer = "" }) { Text(localized("Close", language)) }
+                        TextButton(onClick = {
+                            showComposer = false
+                            editingPostId = null
+                            composer = ""
+                            mediaUri = null
+                            mediaKind = null
+                        }) { Text(localized("Close", language)) }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { mediaPicker.launch("image/*") }) { Text(localized("Photo", language)) }
                         OutlinedButton(onClick = { mediaPicker.launch("video/*") }) { Text(localized("Video", language)) }
                     }
+
+                    // Show the actual selected media before publishing, styled like a feed post.
+                    if (mediaUri != null) {
+                        Spacer(Modifier.height(10.dp))
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFF5EFED))
+                        ) {
+                            Column {
+                                Row(
+                                    Modifier.fillMaxWidth().padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            localized("Post preview", language),
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = Color(0xFF4A2118)
+                                        )
+                                        Text(
+                                            localized("This is how your post will look in the homepage feed", language),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color(0xFF6D5149)
+                                        )
+                                    }
+                                    IconButton(onClick = {
+                                        mediaUri = null
+                                        mediaKind = null
+                                    }) {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = localized("Remove selected media", language),
+                                            tint = Color(0xFF6D5149)
+                                        )
+                                    }
+                                }
+                                Row(
+                                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Image(
+                                        painter = painterResource(id = R.drawable.camillian_logo),
+                                        contentDescription = "Camillian logo",
+                                        modifier = Modifier.size(36.dp).padding(3.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                    Spacer(Modifier.width(8.dp))
+                                    Column(Modifier.weight(1f)) {
+                                        Text(
+                                            profile.fullName?.takeIf { it.isNotBlank() } ?: profile.email ?: localized("Member", language),
+                                            color = Color(0xFF6D2B1E),
+                                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                                        )
+                                        if (postProvince.isNotBlank()) {
+                                            Text(
+                                                "Province: " + postProvince,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = Color(0xFF8C5949)
+                                            )
+                                        }
+                                    }
+                                }
+                                if (mediaKind == "video") {
+                                    PostVideoPlayer(
+                                        videoUrl = mediaUri.toString(),
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp)
+                                    )
+                                } else {
+                                    AsyncImage(
+                                        model = mediaUri,
+                                        contentDescription = localized("Selected photo preview", language),
+                                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
+                                if (composer.isNotBlank()) {
+                                    Text(
+                                        composer,
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+                                        color = Color(0xFF3A2924)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = postProvince,
