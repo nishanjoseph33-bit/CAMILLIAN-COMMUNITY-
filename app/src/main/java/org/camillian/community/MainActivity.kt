@@ -2318,7 +2318,7 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                     "Home" -> HomeScreen(profile, language, onOpenProfile = { publicProfile = it })
                     "Friends" -> FriendsScreen(profile, language, onOpenChat = { conversation ->
                         activeChat = conversation
-                    })
+                    }, onOpenProfile = { publicProfile = it })
                     "Events" -> EventsScreen(language)
                     "Communities" -> CommunitiesScreen(language)
                     "Messages" -> MessagesScreen(
@@ -2352,7 +2352,8 @@ private data class CommunityEvent(
 private fun FriendsScreen(
     profile: MemberProfile,
     language: String = "English",
-    onOpenChat: (Conversation) -> Unit = {}
+    onOpenChat: (Conversation) -> Unit = {},
+    onOpenProfile: (MemberProfile) -> Unit = {}
 ) {
     var members by remember { mutableStateOf<List<MemberProfile>>(emptyList()) }
     var statuses by remember { mutableStateOf<Map<String, String>>(emptyMap()) }
@@ -2558,13 +2559,13 @@ private fun FriendsScreen(
                     Column(Modifier.fillMaxWidth().padding(14.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             if (!member.avatarUrl.isNullOrBlank()) {
-                                AsyncImage(model = member.avatarUrl, contentDescription = "Member photo", modifier = Modifier.size(56.dp), contentScale = ContentScale.Crop)
+                                AsyncImage(model = member.avatarUrl, contentDescription = "Open profile", modifier = Modifier.size(56.dp).clickable { onOpenProfile(member) }, contentScale = ContentScale.Crop)
                             } else {
-                                Image(painter = painterResource(id = R.drawable.camillian_logo), contentDescription = "Camillian logo", modifier = Modifier.size(56.dp), contentScale = ContentScale.Fit)
+                                Image(painter = painterResource(id = R.drawable.camillian_logo), contentDescription = "Open member profile", modifier = Modifier.size(56.dp).clickable { onOpenProfile(member) }, contentScale = ContentScale.Fit)
                             }
                             Spacer(Modifier.width(12.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member", style = MaterialTheme.typography.titleMedium)
+                                Text(member.fullName?.takeIf { it.isNotBlank() } ?: "Unnamed member", style = MaterialTheme.typography.titleMedium, modifier = Modifier.clickable { onOpenProfile(member) })
                                 member.province?.takeIf { it.isNotBlank() }?.let { Text(localized("Province", language) + ": " + it, style = MaterialTheme.typography.bodySmall) }
                                 member.community?.takeIf { it.isNotBlank() }?.let { Text(localized("Community", language) + ": " + it, style = MaterialTheme.typography.bodySmall) }
                             }
