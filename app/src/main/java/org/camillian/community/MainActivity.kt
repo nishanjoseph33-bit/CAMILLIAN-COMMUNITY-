@@ -67,6 +67,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -1636,17 +1638,8 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
 
                             if (!post.mediaUrl.isNullOrBlank()) {
                                 if (post.mediaType == "video" || post.kind == "video") {
-                                    AndroidView(
-                                        factory = { viewContext ->
-                                            VideoView(viewContext).apply {
-                                                setMediaController(MediaController(viewContext))
-                                                setVideoURI(Uri.parse(post.mediaUrl))
-                                                setOnPreparedListener { player ->
-                                                    player.isLooping = true
-                                                    start()
-                                                }
-                                            }
-                                        },
+                                    PostVideoPlayer(
+                                        videoUrl = post.mediaUrl,
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .heightIn(min = 220.dp, max = 520.dp)
@@ -3826,12 +3819,8 @@ private fun PublicMemberProfileScreen(
                             if (!post.textContent.isNullOrBlank()) Text(post.textContent!!)
                             if (!post.mediaUrl.isNullOrBlank()) {
                                 if (post.mediaType == "video" || post.kind == "video") {
-                                    AndroidView(
-                                        factory = { ctx -> VideoView(ctx).apply {
-                                            setMediaController(MediaController(ctx))
-                                            setVideoURI(Uri.parse(post.mediaUrl))
-                                            setOnPreparedListener { it.isLooping = true; start() }
-                                        }},
+                                    PostVideoPlayer(
+                                        videoUrl = post.mediaUrl,
                                         modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 480.dp)
                                     )
                                 } else {
@@ -3841,6 +3830,66 @@ private fun PublicMemberProfileScreen(
                             Text(post.createdAt ?: "", style = MaterialTheme.typography.labelSmall)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PostVideoPlayer(videoUrl: String, modifier: Modifier = Modifier) {
+    var showFullscreen by remember(videoUrl) { mutableStateOf(false) }
+
+    AndroidView(
+        factory = { context ->
+            VideoView(context).apply {
+                setMediaController(MediaController(context))
+                setVideoURI(Uri.parse(videoUrl))
+                setOnPreparedListener { player ->
+                    player.isLooping = true
+                    start()
+                }
+                setOnClickListener { showFullscreen = true }
+            }
+        },
+        modifier = modifier
+    )
+
+    if (showFullscreen) {
+        Dialog(
+            onDismissRequest = { showFullscreen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center
+            ) {
+                AndroidView(
+                    factory = { context ->
+                        VideoView(context).apply {
+                            setMediaController(MediaController(context))
+                            setVideoURI(Uri.parse(videoUrl))
+                            setOnPreparedListener { player ->
+                                player.isLooping = true
+                                start()
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+                IconButton(
+                    onClick = { showFullscreen = false },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Close,
+                        contentDescription = "Close full-screen video",
+                        tint = Color.White
+                    )
                 }
             }
         }
