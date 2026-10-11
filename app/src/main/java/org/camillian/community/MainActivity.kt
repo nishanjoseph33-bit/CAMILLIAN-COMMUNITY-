@@ -1496,7 +1496,13 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                 Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 shape = RoundedCornerShape(18.dp)
             ) {
-                Column(Modifier.padding(16.dp)) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 560.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                ) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Text(localized(if (editingPostId == null) "Share with the community" else "Edit post", language), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                         TextButton(onClick = {
