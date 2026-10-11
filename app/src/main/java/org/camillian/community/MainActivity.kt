@@ -54,9 +54,12 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.DarkMode
+import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -183,8 +186,9 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         Supabase.client.handleDeeplinks(intent)
         setContent {
+    var isDarkMode by remember { mutableStateOf(true) }
     MaterialTheme(
-        colorScheme = darkColorScheme(
+        colorScheme = if (isDarkMode) darkColorScheme(
             primary = Color(0xFFE05A3F),
             onPrimary = Color.White,
             primaryContainer = Color(0xFF5A241C),
@@ -200,12 +204,29 @@ class MainActivity : ComponentActivity() {
             surfaceVariant = Color(0xFF3A2A25),
             onSurface = Color(0xFFF8EDE8),
             onBackground = Color(0xFFF8EDE8)
+        ) else lightColorScheme(
+            primary = Color(0xFFB53D28),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFFFDAD2),
+            onPrimaryContainer = Color(0xFF410001),
+            secondary = Color(0xFF87521D),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFFFDDBB),
+            onSecondaryContainer = Color(0xFF2B160D),
+            tertiary = Color(0xFF745B22),
+            background = Color(0xFFFFF8F6),
+            surface = Color(0xFFFFF8F6),
+            surfaceVariant = Color(0xFFF2E0DB),
+            onSurface = Color(0xFF241A17),
+            onBackground = Color(0xFF241A17)
         )
     ) {
-        Surface(modifier = Modifier.fillMaxSize(), color = Color.Transparent) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             App(
                 recoveryMode = intent?.dataString?.contains("type=recovery") == true,
-                inviteMode = intent?.dataString?.contains("type=invite") == true
+                inviteMode = intent?.dataString?.contains("type=invite") == true,
+                isDarkMode = isDarkMode,
+                onToggleTheme = { isDarkMode = !isDarkMode }
             )
         }
     }
@@ -214,7 +235,7 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false) {
+private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false, isDarkMode: Boolean, onToggleTheme: () -> Unit) {
     var language by remember { mutableStateOf("English") }
     var profile by remember { mutableStateOf<MemberProfile?>(null) }
     var message by remember { mutableStateOf("") }
@@ -2315,6 +2336,16 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
                         alpha = 0.10f
+                    )
+                }
+                IconButton(
+                    onClick = onToggleTheme,
+                    modifier = Modifier.align(Alignment.TopEnd).padding(8.dp)
+                ) {
+                    Icon(
+                        imageVector = if (isDarkMode) Icons.Filled.LightMode else Icons.Filled.DarkMode,
+                        contentDescription = if (isDarkMode) "Switch to light mode" else "Switch to dark mode",
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
                 when (currentTab) {
