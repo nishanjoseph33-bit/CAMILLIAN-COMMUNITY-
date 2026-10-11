@@ -2326,7 +2326,8 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
                         language,
                         initialConversation = messageConversation,
                         onInitialConversationConsumed = { messageConversation = null },
-                        onUnreadChanged = { hasUnreadMessages = it }
+                        onUnreadChanged = { hasUnreadMessages = it },
+                        onOpenProfile = { publicProfile = it }
                     )
                     "Profile" -> ProfileScreen(profile, onLogout, language = language, onLanguageChange = onLanguageChange, onProfileUpdated = onProfileUpdated, signingOut = signingOut)
                     "Dashboard" -> if (isAdmin) {
@@ -2852,7 +2853,8 @@ private fun MessagesScreen(
     language: String = "English",
     initialConversation: Conversation? = null,
     onInitialConversationConsumed: () -> Unit = {},
-    onUnreadChanged: (Boolean) -> Unit = {}
+    onUnreadChanged: (Boolean) -> Unit = {},
+    onOpenProfile: (MemberProfile) -> Unit = {}
 ) {
     var conversations by remember { mutableStateOf<List<Conversation>>(emptyList()) }
     var conversationPeople by remember { mutableStateOf<Map<String, MemberProfile>>(emptyMap()) }
@@ -3031,7 +3033,7 @@ private fun MessagesScreen(
     }
 
     if (selected != null) {
-        ChatScreen(profile, selected!!, language = language, onBack = { selected = null })
+        ChatScreen(profile, selected!!, language = language, onBack = { selected = null }, onOpenProfile = onOpenProfile)
         return
     }
 
@@ -3098,7 +3100,7 @@ private fun MessagesScreen(
                 ) {
                     items(results, key = { it.id }) { member ->
                         Card(
-                            modifier = Modifier.fillMaxWidth().clickable { startSearchedConversation(member) }
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(
                                 Modifier.fillMaxWidth().padding(10.dp),
@@ -3108,7 +3110,7 @@ private fun MessagesScreen(
                                     AsyncImage(
                                         model = member.avatarUrl,
                                         contentDescription = member.fullName ?: "Profile picture",
-                                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(50)),
+                                        modifier = Modifier.size(44.dp).clip(RoundedCornerShape(50)).clickable { onOpenProfile(member) },
                                         contentScale = ContentScale.Crop
                                     )
                                 } else {
@@ -3128,7 +3130,8 @@ private fun MessagesScreen(
                                         member.fullName?.takeIf { it.isNotBlank() }
                                             ?: member.religiousName?.takeIf { it.isNotBlank() }
                                             ?: "Member",
-                                        style = MaterialTheme.typography.titleSmall
+                                        style = MaterialTheme.typography.titleSmall,
+                                        modifier = Modifier.clickable { onOpenProfile(member) }
                                     )
                                     member.email?.takeIf { it.isNotBlank() }?.let {
                                         Text(it, style = MaterialTheme.typography.bodySmall)
@@ -3226,7 +3229,8 @@ private fun MessagesScreen(
                                         contentDescription = person?.fullName ?: "Profile picture",
                                         modifier = Modifier
                                             .fillMaxSize()
-                                            .clip(RoundedCornerShape(50)),
+                                            .clip(RoundedCornerShape(50))
+                                            .clickable { person?.let(onOpenProfile) },
                                         contentScale = ContentScale.Crop
                                     )
                                 } else {
@@ -3263,7 +3267,8 @@ private fun MessagesScreen(
                                         person?.fullName?.takeIf { it.isNotBlank() }
                                             ?: person?.religiousName?.takeIf { it.isNotBlank() }
                                             ?: localized("Private conversation", language),
-                                    style = MaterialTheme.typography.titleMedium
+                                    style = MaterialTheme.typography.titleMedium,
+                                    modifier = Modifier.clickable { person?.let(onOpenProfile) }
                                 )
                             }
                         }
@@ -3276,7 +3281,7 @@ private fun MessagesScreen(
 
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun ChatScreen(profile: MemberProfile, conversation: Conversation, language: String = "English", onBack: () -> Unit) {
+private fun ChatScreen(profile: MemberProfile, conversation: Conversation, language: String = "English", onBack: () -> Unit, onOpenProfile: (MemberProfile) -> Unit = {}) {
     var messages by remember { mutableStateOf<List<ChatMessage>>(emptyList()) }
     var composer by remember { mutableStateOf("") }
     var pendingMediaUrl by remember { mutableStateOf<String?>(null) }
