@@ -372,6 +372,8 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false, isDa
                         onLanguageChange = { language = it },
                         onProfileUpdated = { updated -> profile = updated },
                         signingOut = signingOut,
+                        isDarkMode = isDarkMode,
+                        onToggleTheme = { isDarkMode = !isDarkMode },
                         onLogout = { performLogout() }
                     )
                 }
@@ -2221,7 +2223,7 @@ private fun localized(key: String, language: String): String {
 }
 
 @Composable
-private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, signingOut: Boolean = false, onLogout: () -> Unit) {
+private fun CommunityShell(profile: MemberProfile, language: String, onLanguageChange: (String) -> Unit, onProfileUpdated: (MemberProfile) -> Unit, signingOut: Boolean = false, isDarkMode: Boolean, onToggleTheme: () -> Unit, onLogout: () -> Unit) {
     val isAdmin = profile.memberRole == "admin" || profile.memberRole == "super_admin"
     var tab by remember { mutableStateOf("Home") }
     var messageConversation by remember { mutableStateOf<Conversation?>(null) }
