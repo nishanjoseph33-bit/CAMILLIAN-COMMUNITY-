@@ -1556,11 +1556,10 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                                         modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp)
                                     )
                                 } else {
-                                    AsyncImage(
-                                        model = mediaUri,
-                                        contentDescription = localized("Selected photo preview", language),
-                                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
-                                        contentScale = ContentScale.Crop
+                                    PostPhotoCarousel(
+                                        mediaUrls = selectedPhotoUris.map { it.toString() },
+                                        modifier = Modifier.fillMaxWidth(),
+                                        localUris = true
                                     )
                                 }
                                 if (composer.isNotBlank()) {
@@ -1738,11 +1737,9 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                                             .heightIn(min = 220.dp, max = 520.dp)
                                     )
                                 } else {
-                                    AsyncImage(
-                                        model = post.mediaUrl,
-                                        contentDescription = "Post media",
-                                        modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
-                                        contentScale = ContentScale.Crop
+                                    PostPhotoCarousel(
+                                        mediaUrls = parsePostMediaUrls(post.mediaUrl),
+                                        modifier = Modifier.fillMaxWidth()
                                     )
                                 }
                             }
@@ -3917,10 +3914,145 @@ private fun PublicMemberProfileScreen(
                                         modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 480.dp)
                                     )
                                 } else {
-                                    AsyncImage(model = post.mediaUrl, contentDescription = "Post media", modifier = Modifier.fillMaxWidth().heightIn(min = 160.dp, max = 480.dp), contentScale = ContentScale.Crop)
+                                    PostPhotoCarousel(
+                                        mediaUrls = parsePostMediaUrls(post.mediaUrl),
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
                                 }
                             }
                             Text(post.createdAt ?: "", style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun parsePostMediaUrls(mediaUrl: String?): List<String> {
+    if (mediaUrl.isNullOrBlank()) return emptyList()
+    val value = mediaUrl.trim()
+    if (!value.startsWith("[")) return listOf(value)
+    return try {
+        val array = JSONArray(value)
+        (0 until array.length()).mapNotNull { index ->
+            array.optString(index).takeIf { it.isNotBlank() && it != "null" }
+        }
+    } catch (_: Exception) {
+        listOf(value)
+    }
+}
+
+@Composable
+private fun PostPhotoCarousel(
+    mediaUrls: List<String>,
+    modifier: Modifier = Modifier,
+    localUris: Boolean = false
+) {
+    if (mediaUrls.isEmpty()) return
+    var selectedIndex by remember(mediaUrls) { mutableStateOf(0) }
+    var showFullscreen by remember(mediaUrls) { mutableStateOf(false) }
+    var horizontalDrag by remember(mediaUrls) { mutableStateOf(0f) }
+
+    Box(
+        modifier = modifier
+            .heightIn(min = 180.dp, max = 520.dp)
+            .clickable { showFullscreen = true }
+            .pointerInput(mediaUrls, selectedIndex) {
+                detectHorizontalDragGestures(
+                    onHorizontalDrag = { _, amount -> horizontalDrag += amount },
+                    onDragEnd = {
+                        if (horizontalDrag < -50f && selectedIndex < mediaUrls.lastIndex) {
+                            selectedIndex += 1
+                        } else if (horizontalDrag > 50f && selectedIndex > 0) {
+                            selectedIndex -= 1
+                        }
+                        horizontalDrag = 0f
+                    },
+                    onDragCancel = { horizontalDrag = 0f }
+                )
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        AsyncImage(
+            model = if (localUris) Uri.parse(mediaUrls[selectedIndex]) else mediaUrls[selectedIndex],
+            contentDescription = "Photo \${selectedIndex + 1} of \${mediaUrls.size}",
+            modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
+            contentScale = ContentScale.Fit
+        )
+        if (mediaUrls.size > 1) {
+            Row(
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
+                    .background(Color.Black.copy(alpha = 0.24f), RoundedCornerShape(50))
+                    .padding(horizontal = 9.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                mediaUrls.indices.forEach { index ->
+                    Box(
+                        Modifier.size(if (index == selectedIndex) 7.dp else 6.dp)
+                            .background(
+                                Color.White.copy(alpha = if (index == selectedIndex) 0.95f else 0.48f),
+                                RoundedCornerShape(50)
+                            )
+                    )
+                }
+            }
+        }
+    }
+
+    if (showFullscreen) {
+        Dialog(
+            onDismissRequest = { showFullscreen = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                Modifier.fillMaxSize().background(Color.Black)
+                    .pointerInput(mediaUrls, selectedIndex) {
+                        detectHorizontalDragGestures(
+                            onHorizontalDrag = { _, amount -> horizontalDrag += amount },
+                            onDragEnd = {
+                                if (horizontalDrag < -50f && selectedIndex < mediaUrls.lastIndex) {
+                                    selectedIndex += 1
+                                } else if (horizontalDrag > 50f && selectedIndex > 0) {
+                                    selectedIndex -= 1
+                                }
+                                horizontalDrag = 0f
+                            },
+                            onDragCancel = { horizontalDrag = 0f }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                AsyncImage(
+                    model = if (localUris) Uri.parse(mediaUrls[selectedIndex]) else mediaUrls[selectedIndex],
+                    contentDescription = "Full photo \${selectedIndex + 1} of \${mediaUrls.size}",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit
+                )
+                IconButton(
+                    onClick = { showFullscreen = false },
+                    modifier = Modifier.align(Alignment.TopEnd).padding(12.dp)
+                        .background(Color.Black.copy(alpha = 0.45f), RoundedCornerShape(50))
+                ) {
+                    Icon(Icons.Filled.Close, contentDescription = "Close full-screen photo", tint = Color.White)
+                }
+                if (mediaUrls.size > 1) {
+                    Row(
+                        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp)
+                            .background(Color.Black.copy(alpha = 0.35f), RoundedCornerShape(50))
+                            .padding(horizontal = 10.dp, vertical = 7.dp),
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        mediaUrls.indices.forEach { index ->
+                            Box(
+                                Modifier.size(if (index == selectedIndex) 8.dp else 6.dp)
+                                    .background(
+                                        Color.White.copy(alpha = if (index == selectedIndex) 0.95f else 0.48f),
+                                        RoundedCornerShape(50)
+                                    )
+                            )
                         }
                     }
                 }
