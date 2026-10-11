@@ -3296,6 +3296,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
     var showMessageActions by remember { mutableStateOf<ChatMessage?>(null) }
     var otherMemberName by remember { mutableStateOf<String?>(null) }
     var otherMemberAvatarUrl by remember { mutableStateOf<String?>(null) }
+    var otherMemberProfile by remember { mutableStateOf<MemberProfile?>(null) }
     val scope = rememberCoroutineScope()
 
     fun loadMessages() {
@@ -3418,6 +3419,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                 }.decodeList<MemberProfile>().firstOrNull()
                 otherMemberName = other?.fullName?.takeIf { it.isNotBlank() }
                 otherMemberAvatarUrl = other?.avatarUrl
+                otherMemberProfile = other
             }
         } catch (_: Exception) {
         }
@@ -3447,7 +3449,7 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
             ) {
                 TextButton(onClick = onBack) { Text(localized("Back", language)) }
                 Surface(
-                    modifier = Modifier.size(46.dp),
+                    modifier = Modifier.size(46.dp).clickable { if (!conversation.isGroup) otherMemberProfile?.let(onOpenProfile) },
                     shape = RoundedCornerShape(50),
                     color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)
                 ) {
@@ -3473,7 +3475,8 @@ private fun ChatScreen(profile: MemberProfile, conversation: Conversation, langu
                         if (conversation.isGroup) conversation.title ?: localized("Group conversation", language) else otherMemberName ?: conversation.title ?: localized("Conversation", language),
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.clickable { if (!conversation.isGroup) otherMemberProfile?.let(onOpenProfile) }
                     )
                     Text(
                         localized("Messages", language),
