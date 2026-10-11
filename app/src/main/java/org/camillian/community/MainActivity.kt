@@ -2313,15 +2313,28 @@ private fun CommunityShell(profile: MemberProfile, language: String, onLanguageC
             },
             label = "community-page-transition"
         ) { currentTab ->
-            val pageBackground = when (currentTab) {
-                "Home" -> Color.Transparent
-                "Friends" -> Color(0xFF101B2D)
-                "Events" -> Color(0xFF10251F)
-                "Communities" -> Color(0xFF21152F)
-                "Messages" -> Color(0xFF151B31)
-                "Profile" -> Color(0xFF10252A)
-                "Dashboard" -> Color(0xFF2A2112)
-                else -> Color.Transparent
+            val pageBackground = if (isDarkMode) {
+                when (currentTab) {
+                    "Home" -> Color.Transparent
+                    "Friends" -> Color(0xFF101B2D)
+                    "Events" -> Color(0xFF10251F)
+                    "Communities" -> Color(0xFF21152F)
+                    "Messages" -> Color(0xFF151B31)
+                    "Profile" -> Color(0xFF10252A)
+                    "Dashboard" -> Color(0xFF2A2112)
+                    else -> Color.Transparent
+                }
+            } else {
+                when (currentTab) {
+                    "Home" -> Color.Transparent
+                    "Friends" -> Color(0xFFF4F7FC)
+                    "Events" -> Color(0xFFF1F8F3)
+                    "Communities" -> Color(0xFFF7F2FA)
+                    "Messages" -> Color(0xFFF2F5FC)
+                    "Profile" -> Color(0xFFF0F8F8)
+                    "Dashboard" -> Color(0xFFFAF5E9)
+                    else -> Color.Transparent
+                }
             }
             Box(
                 Modifier
