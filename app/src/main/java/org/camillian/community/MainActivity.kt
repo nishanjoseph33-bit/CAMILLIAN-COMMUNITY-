@@ -3978,7 +3978,7 @@ private fun PostPhotoCarousel(
     ) {
         AsyncImage(
             model = if (localUris) Uri.parse(mediaUrls[selectedIndex]) else mediaUrls[selectedIndex],
-            contentDescription = "Photo \${selectedIndex + 1} of \${mediaUrls.size}",
+            contentDescription = "Photo ${selectedIndex + 1} of ${mediaUrls.size}",
             modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
             contentScale = ContentScale.Fit
         )
@@ -4028,7 +4028,7 @@ private fun PostPhotoCarousel(
             ) {
                 AsyncImage(
                     model = if (localUris) Uri.parse(mediaUrls[selectedIndex]) else mediaUrls[selectedIndex],
-                    contentDescription = "Full photo \${selectedIndex + 1} of \${mediaUrls.size}",
+                    contentDescription = "Full photo ${selectedIndex + 1} of ${mediaUrls.size}",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
                 )
