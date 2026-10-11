@@ -108,6 +108,9 @@ import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.buildJsonObject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.serialization.json.Json
 import org.json.JSONArray
 import java.io.File
@@ -1727,7 +1730,7 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                                         Text("Province: " + post.province, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.secondary)
                                     }
                                 }
-                                Text(post.createdAt ?: "", style = MaterialTheme.typography.labelSmall)
+                                Text(formatPostTimestamp(post.createdAt), style = MaterialTheme.typography.labelSmall)
                             }
 
                             if (!post.mediaUrl.isNullOrBlank()) {
@@ -3938,6 +3941,47 @@ private fun PublicMemberProfileScreen(
             }
         }
     }
+}
+
+private fun formatPostTimestamp(createdAt: String?): String {
+    if (createdAt.isNullOrBlank()) return ""
+    val value = createdAt.trim()
+    val patterns = listOf(
+        "yyyy-MM-dd'T'HH:mm:ss.SSSX",
+        "yyyy-MM-dd'T'HH:mm:ssX",
+        "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+        "yyyy-MM-dd'T'HH:mm:ss'Z'",
+        "yyyy-MM-dd HH:mm:ss"
+    )
+    val date = patterns.firstNotNullOfOrNull { pattern ->
+        try {
+            SimpleDateFormat(pattern, Locale.US).apply {
+                isLenient = false
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.parse(value)
+        } catch (_: Exception) {
+            null
+        }
+    } ?: return value
+
+    val elapsedSeconds = ((System.currentTimeMillis() - date.time) / 1000L).coerceAtLeast(0L)
+    val relative = when {
+        elapsedSeconds < 60L -> "${elapsedSeconds.coerceAtLeast(1L)} second${if (elapsedSeconds == 1L) "" else "s"} ago"
+        elapsedSeconds < 3600L -> {
+            val minutes = elapsedSeconds / 60L
+            "$minutes minute${if (minutes == 1L) "" else "s"} ago"
+        }
+        elapsedSeconds < 86400L -> {
+            val hours = elapsedSeconds / 3600L
+            "$hours hour${if (hours == 1L) "" else "s"} ago"
+        }
+        elapsedSeconds < 7L * 86400L -> {
+            val days = elapsedSeconds / 86400L
+            "$days day${if (days == 1L) "" else "s"} ago"
+        }
+        else -> SimpleDateFormat("d MMMM yyyy", Locale.getDefault()).format(date)
+    }
+    return relative
 }
 
 private fun parsePostMediaUrls(mediaUrl: String?): List<String> {
