@@ -1426,18 +1426,15 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                         }
                         try {
                             val storagePath = profile.id + "/posts/" + System.currentTimeMillis() + "-" + index + "." + extension
-                            val upload = bucket.resumable.createOrContinueUpload(
-                                channel = { offset ->
-                                    java.io.FileInputStream(tempFile).apply {
-                                        channel.position(offset)
-                                    }.toByteReadChannel()
-                                },
-                                source = storagePath,
-                                size = tempFile.length(),
-                                path = storagePath
-                            )
-                            upload.startOrResumeUploading()
-                            uploadedUrls.add(bucket.publicUrl(storagePath))
+                            val uploadBytes = withContext(Dispatchers.IO) { tempFile.readBytes() }
+                            check(uploadBytes.isNotEmpty()) { "The selected photo is empty. Please choose it again." }
+                            // Use the same standard Storage upload path as profile photos.
+                            // The previous resumable stream path could leave a public URL
+                            // that does not resolve to a readable image object.
+                            bucket.upload(storagePath, uploadBytes) { upsert = false }
+                            val publicUrl = bucket.publicUrl(storagePath)
+                            check(publicUrl.startsWith("http")) { "Could not create a public URL for the uploaded photo." }
+                            uploadedUrls.add(publicUrl)
                         } finally {
                             tempFile.delete()
                         }
