@@ -1431,9 +1431,20 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
                             // Use the same standard Storage upload path as profile photos.
                             // The previous resumable stream path could leave a public URL
                             // that does not resolve to a readable image object.
-                            bucket.upload(storagePath, uploadBytes) { upsert = false }
+                            // Preserve the real MIME type in Storage metadata so image
+                            // viewers and CDNs serve the uploaded object as an image.
+                            bucket.upload(storagePath, uploadBytes) {
+                                upsert = false
+                                contentType = mime.ifBlank {
+                                    if (kind == "video") "video/mp4" else "image/jpeg"
+                                }
+                            }
                             val publicUrl = bucket.publicUrl(storagePath)
-                            check(publicUrl.startsWith("http")) { "Could not create a public URL for the uploaded photo." }
+                            check(publicUrl.startsWith("http")) { "Photo uploaded, but Supabase did not return a valid public URL." }
+                            // Verify the new object is actually available before publishing a post
+                            // that points at it; otherwise report the storage failure immediately.
+                            val storedBytes = bucket.downloadAuthenticated(storagePath)
+                            check(storedBytes.isNotEmpty()) { "The uploaded media could not be read back from Supabase Storage." }
                             uploadedUrls.add(publicUrl)
                         } finally {
                             tempFile.delete()
