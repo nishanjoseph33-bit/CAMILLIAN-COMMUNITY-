@@ -314,7 +314,8 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false, isDa
         else -> "home"
     }
 
-    if (profile != null) MessageNotificationListener(profile!!)
+    var inAppNotice by remember { mutableStateOf<Pair<String, String>?>(null) }
+    if (profile != null) MessageNotificationListener(profile!!) { notice -> inAppNotice = notice }
 
     var showLaunchSplash by remember { mutableStateOf(!(recoveryMode || inviteMode)) }
     var splashStage by remember { mutableStateOf(0) }
@@ -388,15 +389,35 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false, isDa
             }
         }
     }
+
+    inAppNotice?.let { notice ->
+        Box(Modifier.fillMaxSize().padding(top = 14.dp, start = 16.dp, end = 16.dp), contentAlignment = Alignment.TopCenter) {
+            Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.inverseSurface, shadowElevation = 8.dp) {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text(notice.first, color = MaterialTheme.colorScheme.inverseOnSurface, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(3.dp))
+                    Text(notice.second, color = MaterialTheme.colorScheme.inverseOnSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+    }
 }
 }
 
 @Composable
-private fun MessageNotificationListener(profile: MemberProfile) {
+private fun MessageNotificationListener(
+    profile: MemberProfile,
+    onInAppNotification: (Pair<String, String>?) -> Unit
+) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
     LaunchedEffect(profile.id) {
+        suspend fun showInApp(title: String, body: String) {
+            onInAppNotification(title to body)
+            delay(2000)
+            onInAppNotification(null)
+        }
         val channelId = "camillian_messages"
         val notificationManager = context.getSystemService(NotificationManager::class.java)
 
@@ -451,6 +472,7 @@ private fun MessageNotificationListener(profile: MemberProfile) {
                             ?: "New message"
                         val body = incoming.messageText?.takeIf { it.isNotBlank() }
                             ?: "You received a new message."
+                        showInApp(senderName, body)
 
                         val intent = Intent(context, MainActivity::class.java).apply {
                             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -475,6 +497,59 @@ private fun MessageNotificationListener(profile: MemberProfile) {
                 }
             }
         } catch (_: Exception) { }
+
+        launch {
+            try {
+                val activityChannel = Supabase.client.channel("camillian-activity-notifications")
+                val activityChanges = activityChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") { table = "notifications" }
+                activityChannel.subscribe()
+                activityChanges.collect { change ->
+                    try {
+                        val item = change.decodeRecord<NotificationItem>()
+                        if (item.userId != profile.id) return@collect
+                        showInApp(item.title.ifBlank { "Community notification" }, item.body.orEmpty().ifBlank { "You have a new notification." })
+                    } catch (_: Exception) { }
+                }
+            } catch (_: Exception) { }
+        }
+
+        launch {
+            try {
+                val reactionChannel = Supabase.client.channel("camillian-like-notifications")
+                val reactionChanges = reactionChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") { table = "post_reactions" }
+                reactionChannel.subscribe()
+                reactionChanges.collect { change ->
+                    try {
+                        val reaction = change.decodeRecord<PostReaction>()
+                        if (reaction.userId == profile.id || reaction.reaction != "like") return@collect
+                        val post = Supabase.client.from("posts").select { filter { filter("id", FilterOperator.EQ, reaction.postId) } }.decodeList<FeedPost>().firstOrNull() ?: return@collect
+                        if (post.authorId != profile.id) return@collect
+                        val actor = Supabase.client.from("profiles").select { filter { filter("id", FilterOperator.EQ, reaction.userId) } }.decodeList<MemberProfile>().firstOrNull()
+                        val actorName = actor?.fullName?.takeIf { it.isNotBlank() } ?: actor?.religiousName?.takeIf { it.isNotBlank() } ?: "Someone"
+                        showInApp("New like", "$actorName liked your post.")
+                    } catch (_: Exception) { }
+                }
+            } catch (_: Exception) { }
+        }
+
+        launch {
+            try {
+                val commentChannel = Supabase.client.channel("camillian-comment-notifications")
+                val commentChanges = commentChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") { table = "comments" }
+                commentChannel.subscribe()
+                commentChanges.collect { change ->
+                    try {
+                        val comment = change.decodeRecord<PostComment>()
+                        if (comment.authorId == profile.id) return@collect
+                        val post = Supabase.client.from("posts").select { filter { filter("id", FilterOperator.EQ, comment.postId) } }.decodeList<FeedPost>().firstOrNull() ?: return@collect
+                        if (post.authorId != profile.id) return@collect
+                        val actor = Supabase.client.from("profiles").select { filter { filter("id", FilterOperator.EQ, comment.authorId) } }.decodeList<MemberProfile>().firstOrNull()
+                        val actorName = actor?.fullName?.takeIf { it.isNotBlank() } ?: actor?.religiousName?.takeIf { it.isNotBlank() } ?: "Someone"
+                        showInApp("New comment", "$actorName commented on your post.")
+                    } catch (_: Exception) { }
+                }
+            } catch (_: Exception) { }
+        }
     }
 }
 
@@ -2642,6 +2717,7 @@ private data class FriendRequest(
 @Serializable
 private data class NotificationItem(
     val id: String,
+    @SerialName("user_id") val userId: String = "",
     @SerialName("actor_id") val actorId: String? = null,
     @SerialName("notification_type") val notificationType: String,
     val title: String,
