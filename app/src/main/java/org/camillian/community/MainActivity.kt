@@ -264,7 +264,15 @@ private fun App(recoveryMode: Boolean = false, inviteMode: Boolean = false, isDa
     LaunchedEffect(Unit) {
         if (!recoveryMode && !inviteMode) {
             try {
-                val user = Supabase.client.auth.currentUserOrNull()
+                // Give Supabase Auth time to restore its persisted session from device storage.
+                // Without this short wait, a cold app launch can briefly look logged out.
+                var user = Supabase.client.auth.currentUserOrNull()
+                var restoreAttempts = 0
+                while (user == null && restoreAttempts < 20) {
+                    delay(100)
+                    user = Supabase.client.auth.currentUserOrNull()
+                    restoreAttempts++
+                }
                 if (user != null) {
                     val member = Supabase.client.from("profiles").select {
                         filter { filter("id", FilterOperator.EQ, user.id) }
