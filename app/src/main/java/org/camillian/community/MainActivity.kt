@@ -1645,59 +1645,6 @@ private fun HomeScreen(profile: MemberProfile, language: String = "English", onO
             }
         }
 
-        Row(
-            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 14.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp)
-        ) {
-            Surface(
-                modifier = Modifier.width(68.dp),
-                shape = RoundedCornerShape(34.dp),
-                color = MaterialTheme.colorScheme.primary,
-                shadowElevation = 3.dp,
-                onClick = { showComposer = true }
-            ) {
-                Column(Modifier.padding(vertical = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("+", color = Color.White, fontSize = 28.sp)
-                    Text(localized("Post", language), color = Color.White, fontSize = 11.sp)
-                }
-            }
-            authorProfiles.values.take(12).forEach { author ->
-                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(68.dp)) {
-                    Surface(
-                        modifier = Modifier.size(58.dp),
-                        shape = RoundedCornerShape(50),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        shadowElevation = 2.dp
-                    ) {
-                        if (!author.avatarUrl.isNullOrBlank()) {
-                            AsyncImage(
-                                model = author.avatarUrl,
-                                contentDescription = author.fullName ?: "Member",
-                                modifier = Modifier.padding(3.dp).clip(RoundedCornerShape(50)),
-                                contentScale = ContentScale.Crop
-                            )
-                        } else {
-                            Image(
-                                painter = painterResource(id = R.drawable.camillian_logo),
-                                contentDescription = "Camillian member",
-                                modifier = Modifier.padding(8.dp),
-                                contentScale = ContentScale.Fit
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        author.fullName?.substringBefore(" ")?.take(10) ?: "Member",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
-            }
-        }
-
         HorizontalDivider()
 
         if (message.isNotBlank()) {
