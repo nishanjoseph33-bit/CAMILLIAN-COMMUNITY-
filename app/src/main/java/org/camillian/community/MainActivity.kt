@@ -2468,7 +2468,6 @@ private fun FriendsScreen(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(localized("Find Friends", language), style = MaterialTheme.typography.headlineMedium)
-                Text(localized("Find and connect with Camillian members.", language))
             }
             TextButton(onClick = { showNotifications = !showNotifications }) {
                 Text(
@@ -2671,7 +2670,6 @@ private fun EventsScreen(language: String = "English") {
 
     Column(Modifier.fillMaxSize().padding(20.dp)) {
         Text(localized("Events", language), style = MaterialTheme.typography.headlineMedium)
-        Text(localized("Retreats, conferences, chapters, feast days and community events.", language))
         Spacer(Modifier.height(16.dp))
         if (loading) CircularProgressIndicator()
         else if (events.isEmpty()) Text(localized("No events have been published yet.", language))
@@ -3051,7 +3049,6 @@ private fun MessagesScreen(
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(localized("Messages", language), style = MaterialTheme.typography.headlineMedium)
-                Text(localized("Private and community conversations. Tap a conversation to open the message page.", language))
             }
             IconButton(onClick = {
                 showSearch = !showSearch
