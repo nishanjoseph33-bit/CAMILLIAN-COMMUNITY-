@@ -37,6 +37,8 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.RoundedCornerShape
 import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.request.ImageRequest
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
@@ -4088,6 +4090,9 @@ private fun PostPhotoCarousel(
     var selectedIndex by remember(mediaUrls) { mutableStateOf(0) }
     var showFullscreen by remember(mediaUrls) { mutableStateOf(false) }
     var horizontalDrag by remember(mediaUrls) { mutableStateOf(0f) }
+    var imageFailed by remember(mediaUrls, selectedIndex) { mutableStateOf(false) }
+    val context = LocalContext.current
+    val selectedMediaUrl = mediaUrls[selectedIndex].trim()
 
     Box(
         modifier = modifier
@@ -4110,11 +4115,34 @@ private fun PostPhotoCarousel(
         contentAlignment = Alignment.Center
     ) {
         AsyncImage(
-            model = if (localUris) Uri.parse(mediaUrls[selectedIndex]) else mediaUrls[selectedIndex],
+            model = ImageRequest.Builder(context)
+                .data(if (localUris) Uri.parse(selectedMediaUrl) else selectedMediaUrl)
+                .crossfade(true)
+                .build(),
             contentDescription = "Photo ${selectedIndex + 1} of ${mediaUrls.size}",
             modifier = Modifier.fillMaxWidth().heightIn(min = 180.dp, max = 520.dp),
-            contentScale = ContentScale.Fit
+            contentScale = ContentScale.Fit,
+            onState = { state -> imageFailed = state is AsyncImagePainter.State.Error }
         )
+        if (imageFailed) {
+            Surface(
+                modifier = Modifier.align(Alignment.Center).padding(20.dp),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                shape = RoundedCornerShape(12.dp),
+                tonalElevation = 3.dp
+            ) {
+                Column(
+                    Modifier.padding(horizontal = 18.dp, vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(Icons.Default.Close, contentDescription = null, tint = MaterialTheme.colorScheme.error)
+                    Text("Photo could not be loaded", fontWeight = FontWeight.SemiBold)
+                    Text("Check the image URL and Supabase Storage access.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                    TextButton(onClick = { imageFailed = false }) { Text("Retry") }
+                }
+            }
+        }
         if (mediaUrls.size > 1) {
             Row(
                 modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 12.dp)
@@ -4160,7 +4188,10 @@ private fun PostPhotoCarousel(
                 contentAlignment = Alignment.Center
             ) {
                 AsyncImage(
-                    model = if (localUris) Uri.parse(mediaUrls[selectedIndex]) else mediaUrls[selectedIndex],
+                    model = ImageRequest.Builder(context)
+                        .data(if (localUris) Uri.parse(mediaUrls[selectedIndex].trim()) else mediaUrls[selectedIndex].trim())
+                        .crossfade(true)
+                        .build(),
                     contentDescription = "Full photo ${selectedIndex + 1} of ${mediaUrls.size}",
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Fit
