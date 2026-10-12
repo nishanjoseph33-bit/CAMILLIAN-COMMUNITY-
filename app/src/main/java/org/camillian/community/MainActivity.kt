@@ -4653,6 +4653,7 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
     var message by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var actionMemberId by remember { mutableStateOf<String?>(null) }
+    var roleActionMemberId by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val scrollState = rememberScrollState()
 
@@ -4683,6 +4684,24 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
             } catch (e: Exception) {
                 message = e.message ?: "Could not change member status."
             } finally { actionMemberId = null }
+        }
+    }
+
+    fun changeRole(member: MemberProfile, makeAdmin: Boolean) {
+        scope.launch {
+            roleActionMemberId = member.id
+            try {
+                Supabase.client.postgrest.rpc("admin_set_member_role", buildJsonObject {
+                    put("target_profile_id", member.id)
+                    put("new_role", if (makeAdmin) "admin" else "member")
+                })
+                message = if (makeAdmin) "${member.fullName ?: "Member"} is now an administrator." else "${member.fullName ?: "Administrator"} is now a regular member."
+                loadMembers()
+            } catch (e: Exception) {
+                message = e.message ?: "Could not change administrator role."
+            } finally {
+                roleActionMemberId = null
+            }
         }
     }
 
@@ -4763,7 +4782,20 @@ private fun AdminDashboard(profile: MemberProfile, language: String = "English",
                     Text("Role: ${member.memberRole}")
                     Text("Status: ${member.memberStatus.replaceFirstChar { it.uppercase() }}")
                     Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        if (member.memberStatus == "approved" && member.id != profile.id && member.memberRole != "super_admin") {
+                            if (member.memberRole == "admin") {
+                                OutlinedButton(
+                                    onClick = { changeRole(member, false) },
+                                    enabled = roleActionMemberId == null && actionMemberId == null
+                                ) { Text(if (roleActionMemberId == member.id) "Updating..." else "Remove admin") }
+                            } else {
+                                OutlinedButton(
+                                    onClick = { changeRole(member, true) },
+                                    enabled = roleActionMemberId == null && actionMemberId == null
+                                ) { Text(if (roleActionMemberId == member.id) "Updating..." else "Make admin") }
+                            }
+                        }
                         if (member.memberStatus == "pending") {
                             Button(
                                 onClick = { changeStatus(member, "approved") },
