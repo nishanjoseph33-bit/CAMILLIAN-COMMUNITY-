@@ -3994,7 +3994,7 @@ private fun PublicMemberProfileScreen(
                                     )
                                 }
                             }
-                            Text(post.createdAt ?: "", style = MaterialTheme.typography.labelSmall)
+                            Text(formatPostTimestamp(post.createdAt), style = MaterialTheme.typography.labelSmall)
                         }
                     }
                 }
