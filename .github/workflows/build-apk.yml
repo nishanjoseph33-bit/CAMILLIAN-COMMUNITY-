@@ -51,6 +51,18 @@ jobs:
             git push
           fi
 
+      - name: Restore stable APK signing key when configured
+        env:
+          CAMILLIAN_DEBUG_KEYSTORE_BASE64: ${{ secrets.CAMILLIAN_DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$CAMILLIAN_DEBUG_KEYSTORE_BASE64" ]; then
+            mkdir -p "$HOME/.android"
+            printf '%s' "$CAMILLIAN_DEBUG_KEYSTORE_BASE64" | base64 --decode > "$HOME/.android/debug.keystore"
+            echo "Using the configured stable debug signing key."
+          else
+            echo "::warning::CAMILLIAN_DEBUG_KEYSTORE_BASE64 is not configured. Android will generate a temporary debug signing key; APK updates may require reinstalling."
+          fi
+
       - name: Build debug APK
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
