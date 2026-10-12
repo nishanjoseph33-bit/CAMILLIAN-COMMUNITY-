@@ -13,8 +13,13 @@ android {
         applicationId = "org.camillian.community"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // Every GitHub Actions build gets a higher versionCode so Android can install
+        // a new APK over the previous version instead of treating it as the same/older build.
+        versionCode = providers.environmentVariable("GITHUB_RUN_NUMBER")
+            .orElse("1")
+            .get()
+            .toInt()
+        versionName = "1.0.${providers.environmentVariable("GITHUB_RUN_NUMBER").orElse("1").get()}"
 
         val supabaseUrl = providers.environmentVariable("SUPABASE_URL").orNull ?: ""
         val supabaseKey = providers.environmentVariable("SUPABASE_PUBLISHABLE_KEY").orNull ?: ""
